@@ -22,7 +22,6 @@ from io_scene_gltf2_adenflorian.io.exp import gltf2_io_binary_data
 from io_scene_gltf2_adenflorian.io.com import gltf2_io_constants
 from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_accessors
 from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_joints
-from io_scene_gltf2_adenflorian.blender.com import gltf2_blender_math
 from io_scene_gltf2_adenflorian.io.exp.gltf2_io_user_extensions import export_user_extensions
 
 
@@ -96,10 +95,10 @@ def __gather_inverse_bind_matrices(blender_object, export_settings):
     # traverse the matrices in the same order as the joints and compute the inverse bind matrix
     def __collect_matrices(bone):
         if bone.name in bones:
-            inverse_bind_matrix = gltf2_blender_math.multiply(
-                axis_basis_change,
-                gltf2_blender_math.multiply(
-                    armature.matrix_world,
+            inverse_bind_matrix = (
+                axis_basis_change @
+                (
+                    blender_object.matrix_world @
                     bone.bone.matrix_local
                 )
             ).inverted()
