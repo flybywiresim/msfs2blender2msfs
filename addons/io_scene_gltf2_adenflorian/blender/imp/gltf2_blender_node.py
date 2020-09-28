@@ -29,6 +29,8 @@ class BlenderNode():
     def create_vnode(gltf, vnode_id):
         """Create VNode and all its descendants."""
         vnode = gltf.vnodes[vnode_id]
+        if vnode.name is not None:
+            print('create_vnode: ' + vnode.name)
 
         gltf.display_current_node += 1
         if bpy.app.debug_value == 101:
@@ -95,10 +97,13 @@ class BlenderNode():
         # Set parent
         if vnode.parent is not None:
             parent_vnode = gltf.vnodes[vnode.parent]
+            print('Set parent for child: ' + vnode.name)
+            print('parent: ' + parent_vnode.name)
             if parent_vnode.type == VNode.Object:
                 obj.parent = parent_vnode.blender_object
             elif parent_vnode.type == VNode.Bone:
                 arma_vnode = gltf.vnodes[parent_vnode.bone_arma]
+                print('parent arma: ' + arma_vnode.name)
                 obj.parent = arma_vnode.blender_object
                 obj.parent_type = 'BONE'
                 obj.parent_bone = parent_vnode.blender_bone_name
