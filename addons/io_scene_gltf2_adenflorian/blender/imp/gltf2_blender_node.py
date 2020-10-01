@@ -97,7 +97,7 @@ class BlenderNode():
         # Set parent
         if vnode.parent is not None:
             parent_vnode = gltf.vnodes[vnode.parent]
-            print('Set parent for child: ' + vnode.name)
+            # print('Set parent for child: ' + vnode.name)
             # print('parent: ' + parent_vnode.name)
             if parent_vnode.type == VNode.Object:
                 obj.parent = parent_vnode.blender_object
