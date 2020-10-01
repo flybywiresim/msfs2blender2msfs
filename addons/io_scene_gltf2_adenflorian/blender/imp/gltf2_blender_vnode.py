@@ -264,7 +264,7 @@ def move_skinned_meshes(gltf):
         )
         if ok_to_move:
             # Commenting this out fixes 1 of the wing being rotated 180 deg incorrectly
-            # reparent(gltf, id, new_parent=arma)
+            reparent(gltf, id, new_parent=arma)
             # vnode.base_trs = (
             #     Vector((0, 0, 0)),
             #     Quaternion((1, 0, 0, 0)),

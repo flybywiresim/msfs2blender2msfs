@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import bpy
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 from ..com.gltf2_blender_extras import set_extras
 from .gltf2_blender_mesh import BlenderMesh
 from .gltf2_blender_camera import BlenderCamera
@@ -55,9 +55,13 @@ class BlenderNode():
     @staticmethod
     def create_object(gltf, vnode_id):
         vnode = gltf.vnodes[vnode_id]
+        is_skinned_mesh = False
 
         if vnode.mesh_node_idx is not None:
             obj = BlenderNode.create_mesh_object(gltf, vnode)
+            pynode = gltf.data.nodes[vnode.mesh_node_idx]
+            if pynode.skin is not None:
+                is_skinned_mesh = True
 
         elif vnode.camera_node_idx is not None:
             pynode = gltf.data.nodes[vnode.camera_node_idx]
@@ -89,9 +93,15 @@ class BlenderNode():
 
         # Set transform
         trans, rot, scale = vnode.trs()
-        obj.location = trans
+        if is_skinned_mesh:
+            obj.location = Vector((0, 0, 0))
+        else:
+            obj.location = trans
         obj.rotation_mode = 'QUATERNION'
-        obj.rotation_quaternion = rot
+        if is_skinned_mesh:
+            obj.rotation_quaternion = Quaternion((1, 0, 0, 0))
+        else:
+            obj.rotation_quaternion = rot
         obj.scale = scale
 
         # Set parent

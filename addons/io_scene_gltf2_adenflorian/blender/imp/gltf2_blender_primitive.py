@@ -98,6 +98,7 @@ class BlenderPrimitive():
             joint_mats = [bind_mat @ inv_bind for bind_mat, inv_bind in zip(bind_mats, inv_binds)]
 
             def skin_vert(pos, pidx):
+                return pos
                 out = Vector((0, 0, 0))
                 # Spec says weights should already sum to 1 but some models
                 # don't do it (ex. CesiumMan), so normalize.
@@ -113,6 +114,7 @@ class BlenderPrimitive():
                 return out
 
             def skin_normal(norm, pidx):
+                return norm
                 # TODO: not sure this is right
                 norm = Vector([norm[0], norm[1], norm[2], 0])
                 out = Vector((0, 0, 0, 0))
@@ -189,14 +191,22 @@ class BlenderPrimitive():
         # Set normals
         if 'NORMAL' in attributes:
             normals = BinaryData.get_data_from_accessor(gltf, attributes['NORMAL'], cache=True)
+            for bidx, pidx in vert_idxs:
+                # A32NX
+                # msfs gltf uses VEC4 for the vertex normals, but blender uses VEC3
+                # TODO Figure out what to do with the 4th component
+                n = normals[pidx][0:3]
+                # Because we flipped the face normals, via changing the order of the face indices
+                # We have to flip the vertex normals too
+                bme_verts[bidx].normal = (-n[0], -n[1], -n[2])
 
-            if skin_idx is None:
-                for bidx, pidx in vert_idxs:
-                    bme_verts[bidx].normal = gltf.normal_gltf_to_blender(normals[pidx])
-            else:
-                for bidx, pidx in vert_idxs:
-                    normal = gltf.normal_gltf_to_blender(normals[pidx])
-                    bme_verts[bidx].normal = skin_normal(normal, pidx)
+            # if skin_idx is None:
+            #     for bidx, pidx in vert_idxs:
+            #         bme_verts[bidx].normal = gltf.normal_gltf_to_blender(normals[pidx])
+            # else:
+            #     for bidx, pidx in vert_idxs:
+            #         normal = gltf.normal_gltf_to_blender(normals[pidx])
+            #         bme_verts[bidx].normal = skin_normal(normal, pidx)
 
         # Set vertex colors. Add them in the order COLOR_0, COLOR_1, etc.
         set_num = 0
@@ -331,7 +341,8 @@ class BlenderPrimitive():
             #  / \   / \
             # 0---1 4---5
             fs = [
-                (indices[i], indices[i + 1], indices[i + 2])
+                # A32NX Flip order to flip face normals
+                (indices[i + 2], indices[i + 1], indices[i])
                 for i in range(0, len(indices), 3)
             ]
         elif mode == 5:
