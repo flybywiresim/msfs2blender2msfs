@@ -263,12 +263,13 @@ def move_skinned_meshes(gltf):
             vnode.light_node_idx is None
         )
         if ok_to_move:
-            reparent(gltf, id, new_parent=arma)
-            vnode.base_trs = (
-                Vector((0, 0, 0)),
-                Quaternion((1, 0, 0, 0)),
-                Vector((1, 1, 1)),
-            )
+            # Commenting this out fixes 1 of the wing being rotated 180 deg incorrectly
+            # reparent(gltf, id, new_parent=arma)
+            # vnode.base_trs = (
+            #     Vector((0, 0, 0)),
+            #     Quaternion((1, 0, 0, 0)),
+            #     Vector((1, 1, 1)),
+            # )
             continue
 
         # Otherwise, create a new child of the arma and move
