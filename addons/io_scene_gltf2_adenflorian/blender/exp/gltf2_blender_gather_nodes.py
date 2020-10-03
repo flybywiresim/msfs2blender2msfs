@@ -72,8 +72,9 @@ def __gather_node(blender_object, library, blender_scene, dupli_object_parent, e
     )
 
     # If node mesh is skined, transforms should be ignored at import, so no need to set them here
-    if node.skin is None:
-        node.translation, node.rotation, node.scale = __gather_trans_rot_scale(blender_object, export_settings)
+    # if node.skin is None:
+    # While its not needed by the gltf2 spec, MSFS might still want to see it
+    node.translation, node.rotation, node.scale = __gather_trans_rot_scale(blender_object, export_settings)
 
     if export_settings[gltf2_blender_export_keys.YUP]:
         # Checking node.extensions is making sure that the type of lamp is managed, and will be exported
@@ -383,12 +384,12 @@ def __gather_trans_rot_scale(blender_object, export_settings):
                                      gltf2_blender_math.round_if_near(rot[2], 0.0), gltf2_blender_math.round_if_near(rot[3], 0.0)
     sca[0], sca[1], sca[2] = gltf2_blender_math.round_if_near(sca[0], 1.0), gltf2_blender_math.round_if_near(sca[1], 1.0), \
                              gltf2_blender_math.round_if_near(sca[2], 1.0)
-    if trans[0] != 0.0 or trans[1] != 0.0 or trans[2] != 0.0:
-        translation = [trans[0], trans[1], trans[2]]
-    if rot[0] != 1.0 or rot[1] != 0.0 or rot[2] != 0.0 or rot[3] != 0.0:
-        rotation = [rot[1], rot[2], rot[3], rot[0]]
-    if sca[0] != 1.0 or sca[1] != 1.0 or sca[2] != 1.0:
-        scale = [sca[0], sca[1], sca[2]]
+    # if trans[0] != 0.0 or trans[1] != 0.0 or trans[2] != 0.0:
+    translation = [trans[0], trans[1], trans[2]]
+    # if rot[0] != 1.0 or rot[1] != 0.0 or rot[2] != 0.0 or rot[3] != 0.0:
+    rotation = [rot[1], rot[2], rot[3], rot[0]]
+    # if sca[0] != 1.0 or sca[1] != 1.0 or sca[2] != 1.0:
+    scale = [sca[0], sca[1], sca[2]]
     return translation, rotation, scale
 
 
