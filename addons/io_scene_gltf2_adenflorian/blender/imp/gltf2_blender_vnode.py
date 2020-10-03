@@ -31,6 +31,7 @@ def compute_vnodes(gltf):
     pick_bind_pose(gltf)
     prettify_bones(gltf)
     calc_bone_matrices(gltf)
+    # foo(gltf)
 
 
 class VNode:
@@ -264,12 +265,21 @@ def move_skinned_meshes(gltf):
         )
         if ok_to_move:
             # Commenting this out fixes 1 of the wing being rotated 180 deg incorrectly
-            reparent(gltf, id, new_parent=arma)
-            # vnode.base_trs = (
-            #     Vector((0, 0, 0)),
-            #     Quaternion((1, 0, 0, 0)),
-            #     Vector((1, 1, 1)),
-            # )
+            # parent = gltf.vnodes[vnode.parent]
+            # # if parent.type == VNode.Bone:
+            # #     vnode.base_trs = (
+            # #         parent.editbone_arma_mat @ Vector((0, 0, 0)),
+            # #         Quaternion((1, 0, 0, 0)),
+            # #         Vector((1, 1, 1)),
+            # #     )
+            # #     reparent(gltf, id, new_parent=arma)
+            # # else:
+            # if parent.type != VNode.Bone:
+            #     vnode.base_trs = (
+            #         Vector((0, 0, 0)),
+            #         Quaternion((1, 0, 0, 0)),
+            #         Vector((1, 1, 1)),
+            #     )
             continue
 
         # Otherwise, create a new child of the arma and move
@@ -280,6 +290,69 @@ def move_skinned_meshes(gltf):
         gltf.vnodes[arma].children.append(new_id)
         gltf.vnodes[new_id].mesh_node_idx = vnode.mesh_node_idx
         vnode.mesh_node_idx = None
+
+def foo(gltf):
+    """
+    In glTF, where in the node hierarchy a skinned mesh is instantiated has
+    no effect on its world space position: only the world transforms of the
+    joints in its skin affect it.
+
+    To do this in Blender:
+     * Move a skinned mesh to become a child of the armature that skins it.
+       Have to ensure the mesh and arma have the same world transform.
+     * When we do mesh creation, we will also need to put all the verts in
+       the bind pose in arma space.
+    """
+    ids = list(gltf.vnodes.keys())
+    for id in ids:
+        vnode = gltf.vnodes[id]
+
+        if vnode.mesh_node_idx is None:
+            continue
+
+        skin = gltf.data.nodes[vnode.mesh_node_idx].skin
+        if skin is None:
+            continue
+
+        pyskin = gltf.data.skins[skin]
+        arma = gltf.vnodes[pyskin.joints[0]].bone_arma
+
+        # First try moving the whole node if we can do it without
+        # messing anything up.
+        is_animated = (
+            gltf.data.animations and
+            isinstance(id, int) and
+            gltf.data.nodes[id].animations
+        )
+        ok_to_move = (
+            not is_animated and
+            vnode.type == VNode.Object and
+            not vnode.is_arma and
+            not vnode.children and
+            vnode.camera_node_idx is None and
+            vnode.light_node_idx is None
+        )
+        if ok_to_move:
+            # Commenting this out fixes 1 of the wing being rotated 180 deg incorrectly
+            parent = gltf.vnodes[vnode.parent]
+            if parent.type == VNode.Bone:
+                # gltf.vnodes[pyskin.skeleton].trs()
+                # vnode.base_trs = gltf.vnodes[pyskin.skeleton].trs()
+                # mat = gltf.vnodes[pyskin.skeleton].editbone_arma_mat
+                # vnode.base_trs = (
+
+                # )
+                # super_parent = gltf.vnodes[gltf.vnodes[vnode.parent].parent].parent
+                reparent(gltf, id, new_parent=arma)
+                # vnode.base_trs = gltf.vnodes[super_parent].trs()
+                # reparent(gltf, id, new_parent=arma)
+            # else:
+            #     vnode.base_trs = (
+            #         Vector((0, 0, 0)),
+            #         Quaternion((1, 0, 0, 0)),
+            #         Vector((1, 1, 1)),
+            #     )
+            continue
 
 def reparent(gltf, vnode_id, new_parent):
     """Moves a VNode to a new parent."""

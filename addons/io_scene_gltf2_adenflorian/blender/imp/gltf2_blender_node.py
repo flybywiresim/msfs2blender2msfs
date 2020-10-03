@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import bpy
-from mathutils import Vector, Quaternion
+from mathutils import Vector, Quaternion, Matrix
+from math import radians
 from ..com.gltf2_blender_extras import set_extras
 from .gltf2_blender_mesh import BlenderMesh
 from .gltf2_blender_camera import BlenderCamera
@@ -93,15 +94,60 @@ class BlenderNode():
 
         # Set transform
         trans, rot, scale = vnode.trs()
-        if is_skinned_mesh:
+        if is_skinned_mesh and gltf.vnodes[vnode.parent].type != VNode.Bone:
             obj.location = Vector((0, 0, 0))
         else:
             obj.location = trans
         obj.rotation_mode = 'QUATERNION'
-        if is_skinned_mesh:
+        if is_skinned_mesh and gltf.vnodes[vnode.parent].type != VNode.Bone:
             obj.rotation_quaternion = Quaternion((1, 0, 0, 0))
         else:
             obj.rotation_quaternion = rot
+        # if is_skinned_mesh:
+        #     if gltf.vnodes[vnode.parent].type == VNode.Bone:
+        #         # mat = gltf.vnodes[gltf.vnodes[gltf.vnodes[vnode.parent].parent].parent].editbone_arma_mat
+        #         # obj.location = mat @ Vector((0, 0, 0))
+        #         # x = vnode.base_trs[0]
+        #         # obj.location = Vector((x[0], -x[1], x[2]))
+        #         obj.location = Vector((0, 0, 0))
+        #     else:
+        #         obj.location = Vector((0, 0, 0))
+        # else:
+        #     obj.location = trans
+        # obj.rotation_mode = 'QUATERNION'
+        # if is_skinned_mesh:
+        #     if gltf.vnodes[vnode.parent].type == VNode.Bone:
+        #         # mat = gltf.vnodes[gltf.vnodes[gltf.vnodes[vnode.parent].parent].parent].editbone_arma_mat
+        #         # mat2 = gltf.vnodes[vnode.parent].editbone_arma_mat
+        #         # obj.rotation_quaternion = (mat @ Quaternion((1, 0, 0, 0)).to_matrix().to_4x4()).to_quaternion()
+        #         # obj.rotation_quaternion = mat.decompose()[1]
+                
+        #         # obj.rotation_quaternion = (mat @ vnode.base_trs[1].to_matrix().to_4x4()).to_quaternion()
+        #         mat_rot_z = Matrix.Rotation(radians(-90.0), 4, 'Z')
+        #         # obj.rotation_quaternion = (mat @ mat_rot_z).to_quaternion()
+        #         # obj.rotation_quaternion = (mat @ mat_rot_z).to_quaternion()
+        #         obj.rotation_quaternion = (mat_rot_z).to_quaternion()
+        #         # obj.rotation_quaternion = Quaternion((1, 0, 0, 0))
+        #         # obj.rotation_quaternion = vnode.base_trs[1]
+        #     else:
+        #         obj.rotation_quaternion = Quaternion((1, 0, 0, 0))
+        # else:
+        #     obj.rotation_quaternion = rot
+        # # if is_skinned_mesh and gltf.vnodes[vnode.parent].type != VNode.Bone:
+        # #     # if gltf.vnodes[vnode.parent].type == VNode.Bone:
+        # #     #     obj.location = vnode.parent.trs()[0]
+        # #     # else:
+        # #     obj.location = Vector((0, 0, 0))
+        # # else:
+        # obj.location = trans
+        # obj.rotation_mode = 'QUATERNION'
+        # # if is_skinned_mesh and gltf.vnodes[vnode.parent].type != VNode.Bone:
+        # #     # if gltf.vnodes[vnode.parent].type == VNode.Bone:
+        # #     #     obj.location = vnode.parent.trs()[1]
+        # #     # else:
+        # #     obj.rotation_quaternion = Quaternion((1, 0, 0, 0))
+        # # else:
+        # obj.rotation_quaternion = rot
         obj.scale = scale
 
         # Set parent
@@ -111,6 +157,22 @@ class BlenderNode():
             # print('parent: ' + parent_vnode.name)
             if parent_vnode.type == VNode.Object:
                 obj.parent = parent_vnode.blender_object
+            # elif is_skinned_mesh and gltf.vnodes[vnode.parent].type == VNode.Bone:
+            #     skin = gltf.data.nodes[vnode.mesh_node_idx].skin
+            #     pyskin = gltf.data.skins[skin]
+            #     arma_vnode = gltf.vnodes[gltf.vnodes[pyskin.joints[0]].bone_arma]
+            #     obj.parent = arma_vnode.blender_object
+            # elif is_skinned_mesh and gltf.vnodes[vnode.parent].type == VNode.Bone:
+            #     # skin = gltf.data.nodes[vnode.mesh_node_idx].skin
+            #     # pyskin = gltf.data.skins[skin]
+            #     # parent_bone_skeleton_root_bone = gltf.vnodes[pyskin.joints[0]]
+            #     super_parent_vnode = gltf.vnodes[gltf.vnodes[parent_vnode.parent].parent]
+            #     super_parent_arma_vnode = gltf.vnodes[super_parent_vnode.bone_arma]
+            #     # print('parent arma: ' + super_parent_arma_vnode.name)
+            #     obj.parent = super_parent_arma_vnode.blender_object
+            #     obj.parent_type = 'BONE'
+            #     obj.parent_bone = super_parent_vnode.blender_bone_name
+            #     obj.location += Vector((0, -super_parent_vnode.bone_length, 0))
             elif parent_vnode.type == VNode.Bone:
                 arma_vnode = gltf.vnodes[parent_vnode.bone_arma]
                 # print('parent arma: ' + arma_vnode.name)
@@ -121,6 +183,8 @@ class BlenderNode():
                 # Nodes with a bone parent need to be translated
                 # backwards from the tip to the root
                 obj.location += Vector((0, -parent_vnode.bone_length, 0))
+                # if is_skinned_mesh:
+                #     obj.location = parent_vnode.editbone_trans
 
         bpy.data.scenes[gltf.blender_scene].collection.objects.link(obj)
 
