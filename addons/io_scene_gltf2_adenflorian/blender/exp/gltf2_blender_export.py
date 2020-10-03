@@ -39,6 +39,8 @@ def save(context, export_settings):
 
     __notify_start(context)
     start_time = time.time()
+    export_settings[gltf2_blender_export_keys.BINARY_FILENAME] = bpy.context.scene['gltf_filename_no_ext'] + '.bin'
+    export_settings['gltf_filename'] = bpy.context.scene['gltf_filename_no_ext'] + '.gltf'
     json, buffer = __export(export_settings)
     __write_file(json, buffer, export_settings)
 

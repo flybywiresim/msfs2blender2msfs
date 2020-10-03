@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import bpy
+import os
 
 from .gltf2_blender_node import BlenderNode
 from .gltf2_blender_animation import BlenderAnimation
@@ -28,6 +29,7 @@ class BlenderScene():
     def create(gltf):
         """Scene creation."""
         scene = bpy.context.scene
+        scene['gltf_filename_no_ext'] = os.path.splitext(os.path.basename(gltf.filename))[0]
         gltf.blender_scene = scene.name
         if bpy.context.collection.name in bpy.data.collections: # avoid master collection
             gltf.blender_active_collection = bpy.context.collection.name

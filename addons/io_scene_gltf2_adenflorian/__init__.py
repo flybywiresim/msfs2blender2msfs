@@ -409,6 +409,7 @@ class ExportGLTF2_Base:
         export_settings['timestamp'] = datetime.datetime.now()
 
         export_settings['gltf_filepath'] = bpy.path.ensure_ext(self.filepath, self.filename_ext)
+        export_settings['gltf_filename'] = os.path.basename(export_settings['gltf_filepath'])
         export_settings['gltf_filedirectory'] = os.path.dirname(export_settings['gltf_filepath']) + '/'
         export_settings['gltf_texturedirectory'] = os.path.join(
             export_settings['gltf_filedirectory'],
