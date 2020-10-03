@@ -860,11 +860,11 @@ class ImportGLTF2(Operator, ImportHelper):
         description="How normals are computed during import",
         default="NORMALS")
 
-    texture_folder_name = StringProperty(
-        name="Texture name",
-        description="texture folder name",
-        default="TEXTURE"
-    )
+    # texture_folder_name = StringProperty(
+    #     name="Texture name",
+    #     description="texture folder name",
+    #     default="TEXTURE"
+    # )
 
     bone_heuristic: EnumProperty(
         name="Bone Dir",
@@ -900,7 +900,7 @@ class ImportGLTF2(Operator, ImportHelper):
 
         layout.prop(self, 'import_pack_images')
         layout.prop(self, 'import_shading')
-        layout.prop(self, 'texture_folder_name')
+        # layout.prop(self, 'texture_folder_name')
         layout.prop(self, 'guess_original_bind_pose')
         layout.prop(self, 'bone_heuristic')
 
@@ -945,7 +945,7 @@ class ImportGLTF2(Operator, ImportHelper):
             return {'CANCELLED'}
         print("Data are loaded, start creating Blender stuff")
         start_time = time.time()
-        BlenderGlTF.create(self.gltf_importer, self.report, addon_prefs, self.texture_folder_name, self.filepath)
+        BlenderGlTF.create(self.gltf_importer, self.report, addon_prefs, "TEXTURE", self.filepath)
         elapsed_s = "{:.2f}s".format(time.time() - start_time)
         print("A32NX glTF import finished in " + elapsed_s)
         self.gltf_importer.log.removeHandler(self.gltf_importer.log_handler)

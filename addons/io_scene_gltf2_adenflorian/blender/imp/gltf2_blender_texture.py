@@ -44,11 +44,19 @@ def texture(
     tex_img.label = label
     # Get image
     if pytexture.source is not None:
-        BlenderImage.create(mh.gltf, pytexture.source)
+        BlenderImage.create(mh.gltf, pytexture.source, label)
         pyimg = mh.gltf.data.images[pytexture.source]
         blender_image_name = pyimg.blender_image_name
         if blender_image_name:
             tex_img.image = bpy.data.images[blender_image_name]
+    else:
+        # A32NX
+        if pytexture.MSFT_texture_dds is not None:
+            BlenderImage.create(mh.gltf, pytexture.MSFT_texture_dds.source, label)
+            pyimg = mh.gltf.data.images[pytexture.MSFT_texture_dds.source]
+            blender_image_name = pyimg.blender_image_name
+            if blender_image_name:
+                tex_img.image = bpy.data.images[blender_image_name]
     # Set colorspace for data images
     if is_data:
         if tex_img.image:

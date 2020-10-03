@@ -14,6 +14,8 @@
 
 import bpy
 from mathutils import Vector, Quaternion, Matrix
+import subprocess
+import pathlib
 from .gltf2_blender_scene import BlenderScene
 
 
@@ -24,6 +26,7 @@ class BlenderGlTF():
 
     @staticmethod
     def create(gltf, report, addon_prefs, texture_folder_name, filepath):
+        BlenderGlTF.load_dds_images(gltf, report, addon_prefs, texture_folder_name, filepath)
         """Create glTF main method, with optional profiling"""
         profile = bpy.app.debug_value == 102
         if profile:
@@ -198,3 +201,96 @@ class BlenderGlTF():
 
             suffix = '.%03d' % cntr
             cntr += 1
+
+    # Original is from https://github.com/bestdani/msfs2blend
+    @staticmethod
+    def load_dds_images(gltf, report, addon_prefs, texture_folder_name, filepath):
+        file_path = pathlib.Path(filepath)
+        textures_allowed = addon_prefs.textures_allowed
+        texture_in_dir = file_path.parent.parent / texture_folder_name
+        common_texture_in_dir = file_path.parent.parent.parent.parent.parent.parent / 'fs-base\\texture'
+
+        if textures_allowed:
+            texconv_path = pathlib.Path(addon_prefs.texconv_file)
+            texture_out_dir = pathlib.Path(addon_prefs.texture_target_dir)
+        else:
+            texconv_path = None
+            texture_out_dir = None
+
+        result = BlenderGlTF.convert_images(gltf, texture_in_dir, common_texture_in_dir, texconv_path, texture_out_dir, report)
+
+        print('done doing tex things ' + str(result))
+
+    # Original is from https://github.com/bestdani/msfs2blend
+    @staticmethod
+    def convert_images(gltf, texture_in_dir, common_texture_in_dir, texconv_path, texture_out_dir, report) -> list:
+        to_convert_images = []
+        converted_images = []
+        final_image_paths = []
+        for i, image in enumerate(gltf.data.images):
+            try:
+                dds_file = texture_in_dir / image.uri
+                # if file doesnt exist
+                # check in detail maps folder
+            except KeyError:
+                report({'ERROR'}, f"invalid image at {i}")
+                final_image_paths.append(None)
+                continue
+
+            if not dds_file.exists():
+                dds_file = common_texture_in_dir / 'DETAILMAP' / image.uri
+                if not dds_file.exists():
+                    dds_file = common_texture_in_dir / 'GLASS' / image.uri
+                    if not dds_file.exists():
+                        dds_file = common_texture_in_dir / 'INTERIORS' / image.uri
+                        if not dds_file.exists():
+                            report({'ERROR'},
+                                f"invalid image file location at {i}: {dds_file}")
+                            final_image_paths.append(None)
+                            continue
+
+            final_image_paths.append('')
+            to_convert_images.append(str(dds_file))
+
+        output_dir_param = str(texture_out_dir)
+        texture_out_dir.mkdir(parents=True, exist_ok=True)
+        report({'INFO'}, "converting images with texconv")
+        try:
+            output_lines = subprocess.run(
+                [
+                    str(texconv_path),
+                    '-y',
+                    '-o', output_dir_param,
+                    '-f', 'rgba',
+                    '-ft', 'png',
+                    *to_convert_images
+                ],
+                check=True,
+                capture_output=True
+            ).stdout.decode('cp1252').split('\r\n')
+        except subprocess.CalledProcessError as e:
+            report({'ERROR'}, f"could not convert image textures {e}")
+            return final_image_paths
+        else:
+            for line in output_lines:
+                line: str
+                if line.startswith('writing'):
+                    png_file = line[len('writing '):]
+                    path = pathlib.Path(png_file)
+                    if path.exists():
+                        converted_images.append(path)
+                    else:
+                        converted_images.append(None)
+
+            conv_i = 0
+            for i, image in enumerate(final_image_paths):
+                if image is None:
+                    continue
+                try:
+                    # final_image_paths[i] = converted_images[conv_i]
+                    gltf.data.images[conv_i].uri = str(converted_images[conv_i])
+                except IndexError:
+                    final_image_paths[i] = None
+                else:
+                    conv_i += 1
+            return final_image_paths
