@@ -192,6 +192,12 @@ class GlTF2Exporter:
 
         self.__traverse(animation)
 
+    def add_asobo_bounding_box(self, extensions):
+        if self.__finalized:
+            raise RuntimeError("Tried to add animation to finalized glTF file")
+
+        self.__gltf.asset.extensions = extensions
+
     def __to_reference(self, property):
         """
         Append a child of root property to its respective list and return a reference into said list.

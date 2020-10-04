@@ -365,6 +365,12 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
             vertex = blender_mesh.vertices[vertex_index]
 
             v = convert_swizzle_location(vertex.co, armature, blender_object, export_settings)
+            export_settings['bounding_box_max_x'] = max(v.x, export_settings['bounding_box_max_x'])
+            export_settings['bounding_box_max_y'] = max(v.y, export_settings['bounding_box_max_y'])
+            export_settings['bounding_box_max_z'] = max(v.z, export_settings['bounding_box_max_z'])
+            export_settings['bounding_box_min_x'] = min(v.x, export_settings['bounding_box_min_x'])
+            export_settings['bounding_box_min_y'] = min(v.y, export_settings['bounding_box_min_y'])
+            export_settings['bounding_box_min_z'] = min(v.z, export_settings['bounding_box_min_z'])
             if blender_polygon.use_smooth or blender_mesh.use_auto_smooth:
                 if blender_mesh.has_custom_normals:
                     n = convert_swizzle_normal(blender_mesh.loops[loop_index].normal, armature, blender_object, export_settings)
