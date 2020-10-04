@@ -192,6 +192,13 @@ class GlTF2Exporter:
 
         self.__traverse(animation)
 
+    def add_original_extensions(self, requiredExtensions, usedExtensions):
+        if self.__finalized:
+            raise RuntimeError("Tried to add animation to finalized glTF file")
+
+        self.__gltf.extensions_required += requiredExtensions
+        self.__gltf.extensions_used += usedExtensions
+
     def add_asobo_bounding_box(self, extensions):
         if self.__finalized:
             raise RuntimeError("Tried to add animation to finalized glTF file")

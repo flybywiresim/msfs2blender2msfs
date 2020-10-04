@@ -85,6 +85,8 @@ def __gather_gltf(exporter, export_settings):
     for animation in animations:
         exporter.add_animation(animation)
 
+    exporter.add_original_extensions(bpy.context.scene['extensionsRequired'], bpy.context.scene['extensionsUsed'])
+
     bounding_box_max = [
         export_settings['bounding_box_max_x'],
         export_settings['bounding_box_max_y'],

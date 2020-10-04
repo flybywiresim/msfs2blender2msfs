@@ -30,6 +30,8 @@ class BlenderScene():
         """Scene creation."""
         scene = bpy.context.scene
         scene['gltf_filename_no_ext'] = os.path.splitext(os.path.basename(gltf.filename))[0]
+        scene['extensionsUsed'] = gltf.data.extensions_used
+        scene['extensionsRequired'] = gltf.data.extensions_required
         gltf.blender_scene = scene.name
         if bpy.context.collection.name in bpy.data.collections: # avoid master collection
             gltf.blender_active_collection = bpy.context.collection.name
