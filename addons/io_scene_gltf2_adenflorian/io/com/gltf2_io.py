@@ -873,10 +873,10 @@ class MeshPrimitive:
     def __init__(self, attributes, extensions, extras, indices, material, mode, targets):
         self.attributes = attributes
         self.extensions = extensions
-        self.extras = extras
         self.indices = indices
         self.material = material
         self.mode = mode
+        self.extras = extras
         self.targets = targets
 
     @staticmethod
@@ -897,10 +897,10 @@ class MeshPrimitive:
         result["attributes"] = from_dict(from_int, self.attributes)
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
                                           self.extensions)
-        result["extras"] = from_extra(self.extras)
         result["indices"] = from_union([from_int, from_none], self.indices)
         result["material"] = from_union([from_int, from_none], self.material)
         result["mode"] = from_union([from_int, from_none], self.mode)
+        result["extras"] = from_extra(self.extras)
         result["targets"] = from_union([lambda x: from_list(lambda x: from_dict(from_int, x), x), from_none],
                                        self.targets)
         return result
