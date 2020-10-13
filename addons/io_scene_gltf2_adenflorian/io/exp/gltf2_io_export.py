@@ -36,7 +36,7 @@ def save_gltf(gltf, export_settings, encoder, glb_buffer):
     if export_settings['gltf_format'] != 'GLB':
         indent = 4
         # The comma is typically followed by a newline, so no trailing whitespace is needed on it.
-        separators = (',', ' : ')
+        separators = (',', ': ')
 
     sort_order = [
         "asset",
