@@ -26,6 +26,7 @@ def gather_accessor(buffer_view: gltf2_io_binary_data.BinaryData,
                     max,
                     min,
                     type: gltf2_io_constants.DataType,
+                    name,
                     export_settings) -> gltf2_io.Accessor:
     return gltf2_io.Accessor(
         buffer_view=buffer_view,
@@ -36,7 +37,7 @@ def gather_accessor(buffer_view: gltf2_io_binary_data.BinaryData,
         extras=None,
         max=list(max) if max is not None else None,
         min=list(min) if min is not None else None,
-        name=None,
+        name=name,
         normalized=None,
         sparse=None,
         type=type

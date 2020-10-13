@@ -262,12 +262,12 @@ class Accessor:
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
-        result["max"] = from_union([lambda x: from_list(to_float, x), from_none], self.max)
         result["min"] = from_union([lambda x: from_list(to_float, x), from_none], self.min)
-        result["name"] = from_union([from_str, from_none], self.name)
+        result["max"] = from_union([lambda x: from_list(to_float, x), from_none], self.max)
         result["normalized"] = from_union([from_bool, from_none], self.normalized)
         result["sparse"] = from_union([lambda x: to_class(AccessorSparse, x), from_none], self.sparse)
         result["type"] = from_str(self.type)
+        result["name"] = from_union([from_str, from_none], self.name)
         return result
 
 
@@ -361,8 +361,8 @@ class AnimationSampler:
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
         result["input"] = from_int(self.input)
-        result["interpolation"] = from_union([from_str, from_none], self.interpolation)
         result["output"] = from_int(self.output)
+        result["interpolation"] = from_union([from_str, from_none], self.interpolation)
         return result
 
 
@@ -389,11 +389,11 @@ class Animation:
 
     def to_dict(self):
         result = {}
+        result["name"] = from_union([from_str, from_none], self.name)
         result["channels"] = from_list(lambda x: to_class(AnimationChannel, x), self.channels)
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
-        result["name"] = from_union([from_str, from_none], self.name)
         result["samplers"] = from_list(lambda x: to_class(AnimationSampler, x), self.samplers)
         return result
 
@@ -424,12 +424,12 @@ class Asset:
     def to_dict(self):
         result = {}
         result["copyright"] = from_union([from_str, from_none], self.copyright)
-        result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
-                                          self.extensions)
         result["extras"] = from_extra(self.extras)
         result["generator"] = from_union([from_str, from_none], self.generator)
         result["minVersion"] = from_union([from_str, from_none], self.min_version)
         result["version"] = from_str(self.version)
+        result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
+                                          self.extensions)
         return result
 
 
@@ -464,13 +464,13 @@ class BufferView:
         result = {}
         result["buffer"] = from_int(self.buffer)
         result["byteLength"] = from_int(self.byte_length)
-        result["byteOffset"] = from_union([from_int, from_none], self.byte_offset)
         result["byteStride"] = from_union([from_int, from_none], self.byte_stride)
+        result["byteOffset"] = from_union([from_int, from_none], self.byte_offset)
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
-        result["name"] = from_union([from_str, from_none], self.name)
         result["target"] = from_union([from_int, from_none], self.target)
+        result["name"] = from_union([from_str, from_none], self.name)
         return result
 
 
@@ -647,12 +647,12 @@ class Image:
         # result["mimeType"] = from_union([from_str, from_none], self.mime_type)
         # result["name"] = from_union([from_str, from_none], self.name)
         # result["uri"] = from_union([from_str, from_none], self.uri)
-        result["extras"] = 'ASOBO_image_converted_meta'
         old_uri = from_str(self.uri)
         l = len(old_uri)
         ext = old_uri[l-7:l-4]
         new_uri = old_uri[:l-8] + '.' + ext + '.DDS'
         result["uri"] = new_uri
+        result["extras"] = 'ASOBO_image_converted_meta'
         return result
 
 
@@ -688,7 +688,7 @@ class TextureInfo:
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
         result["index"] = from_int(self.index)
-        result["texCoord"] = from_union([from_int, from_none], self.tex_coord)
+        # result["texCoord"] = from_union([from_int, from_none], self.tex_coord)
         return result
 
 
@@ -722,8 +722,8 @@ class MaterialNormalTextureInfoClass:
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
         result["index"] = from_int(self.index)
-        result["scale"] = from_union([to_float, from_none], self.scale)
-        result["texCoord"] = from_union([from_int, from_none], self.tex_coord)
+        # result["scale"] = from_union([to_float, from_none], self.scale)
+        # result["texCoord"] = from_union([from_int, from_none], self.tex_coord)
         return result
 
 
@@ -758,7 +758,7 @@ class MaterialOcclusionTextureInfoClass:
         result["extras"] = from_extra(self.extras)
         result["index"] = from_int(self.index)
         result["strength"] = from_union([to_float, from_none], self.strength)
-        result["texCoord"] = from_union([from_int, from_none], self.tex_coord)
+        # result["texCoord"] = from_union([from_int, from_none], self.tex_coord)
         return result
 
 
@@ -798,15 +798,15 @@ class MaterialPBRMetallicRoughness:
     def to_dict(self):
         result = {}
         result["baseColorFactor"] = from_union([lambda x: from_list(to_float, x), from_none], self.base_color_factor)
-        result["baseColorTexture"] = from_union([lambda x: to_class(TextureInfo, x), from_none],
-                                                self.base_color_texture)
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
         result["metallicFactor"] = from_union([to_float, from_none], self.metallic_factor)
+        result["roughnessFactor"] = from_union([to_float, from_none], self.roughness_factor)
+        result["baseColorTexture"] = from_union([lambda x: to_class(TextureInfo, x), from_none],
+                                                self.base_color_texture)
         result["metallicRoughnessTexture"] = from_union([lambda x: to_class(TextureInfo, x), from_none],
                                                         self.metallic_roughness_texture)
-        result["roughnessFactor"] = from_union([to_float, from_none], self.roughness_factor)
         return result
 
 
@@ -849,21 +849,21 @@ class Material:
 
     def to_dict(self):
         result = {}
+        result["name"] = from_union([from_str, from_none], self.name)
         result["alphaCutoff"] = from_union([to_float, from_none], self.alpha_cutoff)
         result["alphaMode"] = from_union([from_str, from_none], self.alpha_mode)
         result["doubleSided"] = from_union([from_bool, from_none], self.double_sided)
-        result["emissiveFactor"] = from_union([lambda x: from_list(to_float, x), from_none], self.emissive_factor)
-        result["emissiveTexture"] = from_union([lambda x: to_class(TextureInfo, x), from_none], self.emissive_texture)
-        result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
-                                          self.extensions)
-        result["extras"] = from_extra(self.extras)
-        result["name"] = from_union([from_str, from_none], self.name)
         result["normalTexture"] = from_union([lambda x: to_class(MaterialNormalTextureInfoClass, x), from_none],
                                              self.normal_texture)
         result["occlusionTexture"] = from_union([lambda x: to_class(MaterialOcclusionTextureInfoClass, x), from_none],
                                                 self.occlusion_texture)
+        result["emissiveTexture"] = from_union([lambda x: to_class(TextureInfo, x), from_none], self.emissive_texture)
+        result["emissiveFactor"] = from_union([lambda x: from_list(to_float, x), from_none], self.emissive_factor)
         result["pbrMetallicRoughness"] = from_union([lambda x: to_class(MaterialPBRMetallicRoughness, x), from_none],
                                                     self.pbr_metallic_roughness)
+        result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
+                                          self.extensions)
+        result["extras"] = from_extra(self.extras)
         return result
 
 
@@ -934,8 +934,8 @@ class Mesh:
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
-        result["name"] = from_union([from_str, from_none], self.name)
         result["primitives"] = from_list(lambda x: to_class(MeshPrimitive, x), self.primitives)
+        result["name"] = from_union([from_str, from_none], self.name)
         result["weights"] = from_union([lambda x: from_list(to_float, x), from_none], self.weights)
         return result
 
@@ -988,17 +988,17 @@ class Node:
     def to_dict(self):
         result = {}
         result["camera"] = from_union([from_int, from_none], self.camera)
-        result["children"] = from_union([lambda x: from_list(from_int, x), from_none], self.children)
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
         result["matrix"] = from_union([lambda x: from_list(to_float, x), from_none], self.matrix)
-        result["mesh"] = from_union([from_int, from_none], self.mesh)
-        result["name"] = from_union([from_str, from_none], self.name)
+        result["translation"] = from_union([lambda x: from_list(to_float, x), from_none], self.translation)
         result["rotation"] = from_union([lambda x: from_list(to_float, x), from_none], self.rotation)
         result["scale"] = from_union([lambda x: from_list(to_float, x), from_none], self.scale)
+        result["mesh"] = from_union([from_int, from_none], self.mesh)
         result["skin"] = from_union([from_int, from_none], self.skin)
-        result["translation"] = from_union([lambda x: from_list(to_float, x), from_none], self.translation)
+        result["name"] = from_union([from_str, from_none], self.name)
+        result["children"] = from_union([lambda x: from_list(from_int, x), from_none], self.children)
         result["weights"] = from_union([lambda x: from_list(to_float, x), from_none], self.weights)
         return result
 
@@ -1100,8 +1100,8 @@ class Skin:
         result["extras"] = from_extra(self.extras)
         result["inverseBindMatrices"] = from_union([from_int, from_none], self.inverse_bind_matrices)
         result["joints"] = from_list(from_int, self.joints)
-        result["name"] = from_union([from_str, from_none], self.name)
         result["skeleton"] = from_union([from_int, from_none], self.skeleton)
+        result["name"] = from_union([from_str, from_none], self.name)
         return result
 
 # A32NX

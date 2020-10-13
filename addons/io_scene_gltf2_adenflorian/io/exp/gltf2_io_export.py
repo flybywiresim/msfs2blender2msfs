@@ -39,25 +39,25 @@ def save_gltf(gltf, export_settings, encoder, glb_buffer):
         separators = (',', ': ')
 
     sort_order = [
+        "accessors",
+        "animations",
         "asset",
+        "bufferViews",
         "extensionsUsed",
         "extensionsRequired",
         "extensions",
         "extras",
-        "scene",
-        "scenes",
-        "nodes",
-        "cameras",
-        "animations",
         "materials",
         "meshes",
-        "textures",
-        "images",
+        "nodes",
+        "scene",
+        "scenes",
         "skins",
-        "accessors",
-        "bufferViews",
-        "samplers",
-        "buffers"
+        "textures",
+        "buffers",
+        "images",
+        "cameras",
+        "samplers"
     ]
     gltf_ordered = OrderedDict(sorted(gltf.items(), key=lambda item: sort_order.index(item[0])))
     gltf_encoded = json.dumps(gltf_ordered, indent=indent, separators=separators, cls=encoder, allow_nan=False)

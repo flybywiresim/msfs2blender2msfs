@@ -133,6 +133,7 @@ def __gather_indices(blender_primitive, blender_mesh, modifiers, export_settings
         None,
         None,
         element_type,
+        'indicesAccessor',
         export_settings
     )
 

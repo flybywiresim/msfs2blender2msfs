@@ -121,6 +121,7 @@ def __gather_inverse_bind_matrices(blender_object, export_settings):
         None,
         None,
         gltf2_io_constants.DataType.Mat4,
+        'accessorInverseBindMatrices',
         export_settings
     )
 

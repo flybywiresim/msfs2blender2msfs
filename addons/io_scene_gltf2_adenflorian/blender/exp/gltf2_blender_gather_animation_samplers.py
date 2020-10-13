@@ -247,6 +247,7 @@ def __gather_input(channels: typing.Tuple[bpy.types.FCurve],
         tuple([max(times)]),
         tuple([min(times)]),
         gltf2_io_constants.DataType.Scalar,
+        'animationAccessor',
         export_settings
     )
 
