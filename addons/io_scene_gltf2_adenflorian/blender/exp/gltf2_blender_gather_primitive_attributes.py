@@ -20,7 +20,7 @@ from io_scene_gltf2_adenflorian.io.exp import gltf2_io_binary_data
 from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_utils
 
 
-def gather_primitive_attributes(blender_primitive, export_settings):
+def gather_primitive_attributes(blender_primitive, export_settings, asobo_vertex_type):
     """
     Gathers the attributes, such as POSITION, NORMAL, TANGENT from a blender primitive.
 
@@ -28,11 +28,11 @@ def gather_primitive_attributes(blender_primitive, export_settings):
     """
     attributes = {}
     attributes.update(__gather_position(blender_primitive, export_settings))
-    attributes.update(__gather_normal(blender_primitive, export_settings))
     attributes.update(__gather_tangent(blender_primitive, export_settings))
+    attributes.update(__gather_normal(blender_primitive, export_settings))
     attributes.update(__gather_texcoord(blender_primitive, export_settings))
+    attributes.update(__gather_skins(blender_primitive, export_settings, asobo_vertex_type))
     attributes.update(__gather_colors(blender_primitive, export_settings))
-    attributes.update(__gather_skins(blender_primitive, export_settings))
     return attributes
 
 
@@ -41,14 +41,16 @@ def __gather_position(blender_primitive, export_settings):
     componentType = gltf2_io_constants.ComponentType.Float
     return {
         "POSITION": gltf2_io.Accessor(
-            buffer_view=gltf2_io_binary_data.BinaryData.from_list(position, componentType),
+            buffer_view=position,
             byte_offset=None,
             component_type=componentType,
             count=len(position) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec3),
             extensions=None,
             extras=None,
-            max=gltf2_blender_utils.max_components(position, gltf2_io_constants.DataType.Vec3),
-            min=gltf2_blender_utils.min_components(position, gltf2_io_constants.DataType.Vec3),
+            # max=gltf2_blender_utils.max_components(position, gltf2_io_constants.DataType.Vec3),
+            # min=gltf2_blender_utils.min_components(position, gltf2_io_constants.DataType.Vec3),
+            max=None,
+            min=None,
             name=None,
             normalized=None,
             sparse=None,
@@ -62,10 +64,12 @@ def __gather_normal(blender_primitive, export_settings):
         normal = blender_primitive["attributes"]['NORMAL']
         return {
             "NORMAL": gltf2_io.Accessor(
-                buffer_view=gltf2_io_binary_data.BinaryData.from_list(normal, gltf2_io_constants.ComponentType.Float),
+                buffer_view=list(map(lambda x: round(x * 127.0), normal)),
                 byte_offset=None,
-                component_type=gltf2_io_constants.ComponentType.Float,
-                count=len(normal) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec3),
+                # component_type=gltf2_io_constants.ComponentType.Float,
+                component_type=gltf2_io_constants.ComponentType.Byte,
+                # count=len(normal) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec3),
+                count=len(normal) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec4),
                 extensions=None,
                 extras=None,
                 max=None,
@@ -73,7 +77,11 @@ def __gather_normal(blender_primitive, export_settings):
                 name=None,
                 normalized=None,
                 sparse=None,
-                type=gltf2_io_constants.DataType.Vec3
+                # type=gltf2_io_constants.DataType.Vec3
+                # What is the 4th component used for?
+                # gltf spec mentioned it could be handedness?
+                # maybe has something to do with why the normals were flipped when importing?
+                type=gltf2_io_constants.DataType.Vec4
             )
         }
     return {}
@@ -85,10 +93,10 @@ def __gather_tangent(blender_primitive, export_settings):
             tangent = blender_primitive["attributes"]['TANGENT']
             return {
                 "TANGENT": gltf2_io.Accessor(
-                    buffer_view=gltf2_io_binary_data.BinaryData.from_list(
-                        tangent, gltf2_io_constants.ComponentType.Float),
+                    buffer_view=list(map(lambda x: round(x * 127.0), tangent)),
                     byte_offset=None,
-                    component_type=gltf2_io_constants.ComponentType.Float,
+                    # component_type=gltf2_io_constants.ComponentType.Float,
+                    component_type=gltf2_io_constants.ComponentType.Byte,
                     count=len(tangent) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec4),
                     extensions=None,
                     extras=None,
@@ -112,10 +120,10 @@ def __gather_texcoord(blender_primitive, export_settings):
         while blender_primitive["attributes"].get(tex_coord_id) is not None:
             tex_coord = blender_primitive["attributes"][tex_coord_id]
             attributes[tex_coord_id] = gltf2_io.Accessor(
-                buffer_view=gltf2_io_binary_data.BinaryData.from_list(
-                    tex_coord, gltf2_io_constants.ComponentType.Float),
+                buffer_view=tex_coord,
                 byte_offset=None,
-                component_type=gltf2_io_constants.ComponentType.Float,
+                # component_type=gltf2_io_constants.ComponentType.Float,
+                component_type=gltf2_io_constants.ComponentType.Short, # (e) 2 byte float
                 count=len(tex_coord) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec2),
                 extensions=None,
                 extras=None,
@@ -139,10 +147,10 @@ def __gather_colors(blender_primitive, export_settings):
         while blender_primitive["attributes"].get(color_id) is not None:
             internal_color = blender_primitive["attributes"][color_id]
             attributes[color_id] = gltf2_io.Accessor(
-                buffer_view=gltf2_io_binary_data.BinaryData.from_list(
-                    internal_color, gltf2_io_constants.ComponentType.Float),
+                buffer_view=list(map(lambda x: round(x * 127.0), internal_color)),
                 byte_offset=None,
-                component_type=gltf2_io_constants.ComponentType.Float,
+                # component_type=gltf2_io_constants.ComponentType.Float,
+                component_type=gltf2_io_constants.ComponentType.Byte,
                 count=len(internal_color) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec4),
                 extensions=None,
                 extras=None,
@@ -158,7 +166,7 @@ def __gather_colors(blender_primitive, export_settings):
     return attributes
 
 
-def __gather_skins(blender_primitive, export_settings):
+def __gather_skins(blender_primitive, export_settings, asobo_vertex_type):
     attributes = {}
     if export_settings[gltf2_blender_export_keys.SKINS]:
         bone_set_index = 0
@@ -174,8 +182,7 @@ def __gather_skins(blender_primitive, export_settings):
             # joints
             internal_joint = blender_primitive["attributes"][joint_id]
             joint = gltf2_io.Accessor(
-                buffer_view=gltf2_io_binary_data.BinaryData.from_list(
-                    internal_joint, gltf2_io_constants.ComponentType.UnsignedShort),
+                buffer_view=internal_joint,
                 byte_offset=None,
                 component_type=gltf2_io_constants.ComponentType.UnsignedShort,
                 count=len(internal_joint) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec4),
@@ -200,14 +207,13 @@ def __gather_skins(blender_primitive, export_settings):
                     if total > 0:
                         factor = 1.0 / total
                         internal_weight[idx:idx + 4] = [w * factor for w in weight_slice]
-
+            weight_data_type = gltf2_io_constants.DataType.Scalar if asobo_vertex_type == 'BLEND1' else gltf2_io_constants.DataType.Vec4
             weight = gltf2_io.Accessor(
-                buffer_view=gltf2_io_binary_data.BinaryData.from_list(
-                    internal_weight, gltf2_io_constants.ComponentType.Float),
+                buffer_view=internal_weight,
                 byte_offset=None,
-                component_type=gltf2_io_constants.ComponentType.Float,
+                component_type=gltf2_io_constants.ComponentType.Float if asobo_vertex_type == 'BLEND1' else gltf2_io_constants.ComponentType.UnsignedShort,
                 count=len(internal_weight) // gltf2_io_constants.DataType.num_elements(
-                    gltf2_io_constants.DataType.Vec4),
+                    weight_data_type),
                 extensions=None,
                 extras=None,
                 max=None,
@@ -215,7 +221,7 @@ def __gather_skins(blender_primitive, export_settings):
                 name=None,
                 normalized=None,
                 sparse=None,
-                type=gltf2_io_constants.DataType.Vec4
+                type=weight_data_type
             )
             attributes[weight_id] = weight
 

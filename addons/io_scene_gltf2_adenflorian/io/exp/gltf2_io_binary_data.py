@@ -14,8 +14,10 @@
 
 import typing
 import array
+import struct
 from io_scene_gltf2_adenflorian.io.com import gltf2_io_constants
 
+STRUCT_HALF = struct.Struct('e')
 
 class BinaryData:
     """Store for gltf binary data that can later be stored in a buffer."""
@@ -34,7 +36,14 @@ class BinaryData:
     @classmethod
     def from_list(cls, lst: typing.List[typing.Any], gltf_component_type: gltf2_io_constants.ComponentType):
         format_char = gltf2_io_constants.ComponentType.to_type_code(gltf_component_type)
-        return BinaryData(array.array(format_char, lst).tobytes())
+        if format_char == 'e':
+            # (e) 2 byte float, not supported by array.array()
+            data = b''
+            for x in lst:
+                data += STRUCT_HALF.pack(x)
+            return BinaryData(data)
+        else:
+            return BinaryData(array.array(format_char, lst).tobytes())
 
     @property
     def byte_length(self):

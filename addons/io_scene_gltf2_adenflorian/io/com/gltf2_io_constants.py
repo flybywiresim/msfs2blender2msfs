@@ -28,7 +28,8 @@ class ComponentType(IntEnum):
         return {
             ComponentType.Byte: 'b',
             ComponentType.UnsignedByte: 'B',
-            ComponentType.Short: 'h',
+            # ComponentType.Short: 'h',
+            ComponentType.Short: 'e', # Asobo/babylon reasons | AKA Half | 2 byte float
             ComponentType.UnsignedShort: 'H',
             ComponentType.UnsignedInt: 'I',
             ComponentType.Float: 'f'

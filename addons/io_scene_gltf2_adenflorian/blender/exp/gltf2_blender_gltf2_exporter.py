@@ -21,6 +21,7 @@ from io_scene_gltf2_adenflorian.io.com import gltf2_io
 from io_scene_gltf2_adenflorian.io.com import gltf2_io_extensions
 from io_scene_gltf2_adenflorian.io.exp import gltf2_io_binary_data
 from io_scene_gltf2_adenflorian.io.exp import gltf2_io_buffer
+from io_scene_gltf2_adenflorian.io.exp import gltf2_io_asobo_buffer
 from io_scene_gltf2_adenflorian.io.exp import gltf2_io_image_data
 from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_export_keys
 
@@ -44,6 +45,15 @@ class GlTF2Exporter:
             generator='Khronos glTF Blender I/O v' + get_version_string(),
             min_version=None,
             version='2.0')
+
+        self.component_nb_dict = {}
+        self.component_nb_dict['SCALAR'] = 1
+        self.component_nb_dict['VEC2'] = 2
+        self.component_nb_dict['VEC3'] = 3
+        self.component_nb_dict['VEC4'] = 4
+        self.component_nb_dict['MAT2'] = 4
+        self.component_nb_dict['MAT3'] = 9
+        self.component_nb_dict['MAT4'] = 16
 
         self.__gltf = gltf2_io.Gltf(
             accessors=[],
@@ -104,16 +114,137 @@ class GlTF2Exporter:
             gltf2_io.MaterialOcclusionTextureInfoClass
         ]
 
+        # These are the 8 predefined buffer views that asobo models use
+        # No other buffer views should be created
+        self.__asobo_buffer_views = {
+            'bufferViewFloatMat4': None,
+            'bufferViewAnimationFloatScalar': None,
+            'bufferViewAnimationFloatVec3': None,
+            'bufferViewAnimationFloatVec4': None,
+            'BufferViewVertexND': None,
+            'BufferViewIndex': None,
+            'BufferViewVertex4Blend': None,
+            'BufferViewVertex1Blend': None,
+        }
+
+        self.__asobo_buffer_views['bufferViewFloatMat4'] = gltf2_io.BufferView(
+            buffer=gltf2_io_asobo_buffer.AsoboBuffer(),
+            byte_length=0,
+            byte_offset=None,
+            byte_stride=None,
+            extensions=None,
+            extras=None,
+            name='bufferViewFloatMat4',
+            target=None
+        )
+        self.__gltf.buffer_views.append(self.__asobo_buffer_views['bufferViewFloatMat4'])
+
+        self.__asobo_buffer_views['bufferViewAnimationFloatScalar'] = gltf2_io.BufferView(
+            buffer=gltf2_io_asobo_buffer.AsoboBuffer(),
+            byte_length=0,
+            byte_offset=0,
+            byte_stride=None,
+            extensions=None,
+            extras=None,
+            name='bufferViewAnimationFloatScalar',
+            target=None
+        )
+        self.__gltf.buffer_views.append(self.__asobo_buffer_views['bufferViewAnimationFloatScalar'])
+
+        self.__asobo_buffer_views['bufferViewAnimationFloatVec3'] = gltf2_io.BufferView(
+            buffer=gltf2_io_asobo_buffer.AsoboBuffer(),
+            byte_length=0,
+            byte_offset=0,
+            byte_stride=None,
+            extensions=None,
+            extras=None,
+            name='bufferViewAnimationFloatVec3',
+            target=None
+        )
+        self.__gltf.buffer_views.append(self.__asobo_buffer_views['bufferViewAnimationFloatVec3'])
+
+        self.__asobo_buffer_views['bufferViewAnimationFloatVec4'] = gltf2_io.BufferView(
+            buffer=gltf2_io_asobo_buffer.AsoboBuffer(),
+            byte_length=0,
+            byte_offset=0,
+            byte_stride=None,
+            extensions=None,
+            extras=None,
+            name='bufferViewAnimationFloatVec4',
+            target=None
+        )
+        self.__gltf.buffer_views.append(self.__asobo_buffer_views['bufferViewAnimationFloatVec4'])
+
+        self.__asobo_buffer_views['BufferViewVertexND'] = gltf2_io.BufferView(
+            buffer=gltf2_io_asobo_buffer.AsoboBuffer(),
+            byte_length=0,
+            byte_offset=0,
+            byte_stride=36,
+            extensions=None,
+            extras=None,
+            name='BufferViewVertexND',
+            target=34962
+        )
+        self.__gltf.buffer_views.append(self.__asobo_buffer_views['BufferViewVertexND'])
+
+        self.__asobo_buffer_views['BufferViewIndex'] = gltf2_io.BufferView(
+            buffer=gltf2_io_asobo_buffer.AsoboBuffer(),
+            byte_length=0,
+            byte_offset=0,
+            byte_stride=None,
+            extensions=None,
+            extras=None,
+            name='BufferViewIndex',
+            target=34963
+        )
+        self.__gltf.buffer_views.append(self.__asobo_buffer_views['BufferViewIndex'])
+
+        self.__asobo_buffer_views['BufferViewVertex4Blend'] = gltf2_io.BufferView(
+            buffer=gltf2_io_asobo_buffer.AsoboBuffer(),
+            byte_length=0,
+            byte_offset=0,
+            byte_stride=48,
+            extensions=None,
+            extras=None,
+            name='BufferViewVertex4Blend',
+            target=34962
+        )
+        self.__gltf.buffer_views.append(self.__asobo_buffer_views['BufferViewVertex4Blend'])
+
+        self.__asobo_buffer_views['BufferViewVertex1Blend'] = gltf2_io.BufferView(
+            buffer=gltf2_io_asobo_buffer.AsoboBuffer(),
+            byte_length=0,
+            byte_offset=0,
+            byte_stride=44,
+            extensions=None,
+            extras=None,
+            name='BufferViewVertex1Blend',
+            target=34962
+        )
+        self.__gltf.buffer_views.append(self.__asobo_buffer_views['BufferViewVertex1Blend'])
+
     @property
     def glTF(self):
         if not self.__finalized:
             raise RuntimeError("glTF requested, but buffers are not finalized yet")
         return self.__gltf
 
+    # Add data from all asobo buffers views into main buffer
+    def finalize_asobo_buffers(self):
+        for x in self.__asobo_buffer_views:
+            asobo_buffer_view = self.__asobo_buffer_views[x]
+            binary_data = asobo_buffer_view.buffer.to_bytes()
+            offset = self.__buffer.add(binary_data)
+            asobo_buffer_view.buffer = 0
+            asobo_buffer_view.byte_length = len(binary_data)
+            asobo_buffer_view.byte_offset = offset
+
     def finalize_buffer(self, output_path=None, buffer_name=None, is_glb=False):
         """Finalize the glTF and write buffers."""
         if self.__finalized:
             raise RuntimeError("Tried to finalize buffers for finalized glTF file")
+
+        self.finalize_asobo_buffers()
 
         if self.__buffer.byte_length > 0:
             if is_glb:
@@ -267,6 +398,66 @@ class GlTF2Exporter:
         d[key] = d_key
         return cls.__get_key_path(d[key], keypath, default)
 
+    def __handle_mesh(self, mesh):
+        if any('BLEND' in x.extras['ASOBO_primitive']['VertexType'] for x in mesh.primitives):
+            # Each primitive gets its own accessors
+            for i, primitive in enumerate(mesh.primitives):
+                for attr in primitive.attributes:
+                    # data = primitive.attributes[attr]
+                    primitive.attributes[attr] = 0
+                indices_accessor = primitive.indices
+                binary_data = gltf2_io_binary_data.BinaryData.from_list(indices_accessor.buffer_view, indices_accessor.component_type)
+                offset = self.__asobo_buffer_views['BufferViewIndex'].buffer.append_data(binary_data)
+                indices_accessor.buffer_view = self.__gltf.buffer_views.index(self.__asobo_buffer_views['BufferViewIndex'])
+                indices_accessor.byte_offset = offset
+                indices_accessor.name = f'{mesh.name}_indices#{i}'
+                primitive.indices = self.__to_reference(indices_accessor)
+                primitive.material = self.__traverse(primitive.material)
+        else:
+            # Accessors are shared between the primitives
+            all_indices = []
+            for primitive in mesh.primitives:
+                all_indices.extend(primitive.indices.buffer_view)
+            first_primitive = mesh.primitives[0]
+            indices_accessor = first_primitive.indices
+            binary_data = gltf2_io_binary_data.BinaryData.from_list(all_indices, indices_accessor.component_type)
+            offset = self.__asobo_buffer_views['BufferViewIndex'].buffer.append_data(binary_data)
+            indices_accessor.buffer_view = self.__gltf.buffer_views.index(self.__asobo_buffer_views['BufferViewIndex'])
+            indices_accessor.byte_offset = offset
+            indices_accessor.count = len(all_indices)
+            indices_accessor.name = f'{mesh.name}_indices#{len(mesh.primitives) - 1}'
+            vertex_nd_buffer_view = self.__asobo_buffer_views['BufferViewVertexND']
+
+            for vidx in range(first_primitive.attributes['POSITION'].count):
+                for attr in first_primitive.attributes:
+                    attr_accessor = first_primitive.attributes[attr]
+                    elements_to_pull = self.component_nb_dict[attr_accessor.type]
+                    data_for_vertex = attr_accessor.buffer_view[vidx:vidx + elements_to_pull]
+                    binary_data = gltf2_io_binary_data.BinaryData.from_list(data_for_vertex, attr_accessor.component_type)
+                    offset = vertex_nd_buffer_view.buffer.append_data(binary_data)
+                    if vidx == 0:
+                        attr_accessor.byte_offset = offset
+
+            for attr in first_primitive.attributes:
+                first_primitive.attributes[attr].buffer_view = self.__gltf.buffer_views.index(vertex_nd_buffer_view)
+                first_primitive.attributes[attr].name = f'{mesh.name}_vertices#0_{attr}'
+
+            total_asobo_primitive_count = 0
+            for pidx, primitive in enumerate(mesh.primitives):
+                for attr in primitive.attributes:
+                    # data = primitive.attributes[attr]
+                    # put vertex attr data into asobo buffers interleaved
+                    # pick which buffer view to put data into
+                    primitive.attributes[attr] = self.__to_reference(first_primitive.attributes[attr])
+                primitive.indices = self.__to_reference(indices_accessor)
+                primitive.material = self.__traverse(primitive.material)
+                if pidx > 0:
+                    primitive.extras['ASOBO_primitive']['StartIndex'] = total_asobo_primitive_count * 3
+                total_asobo_primitive_count += primitive.extras['ASOBO_primitive']['PrimitiveCount']
+                primitive.attributes = dict(sorted(primitive.attributes.items()))
+        idx = self.__to_reference(mesh)
+        return idx
+
     def __traverse(self, node):
         """
         Recursively traverse a scene graph consisting of gltf compatible elements.
@@ -285,6 +476,9 @@ class GlTF2Exporter:
                 #         self.__append_unique_and_get_index(self.__gltf.extensions_used, extension_name)
                 #         self.__append_unique_and_get_index(self.__gltf.extensions_required, extension_name)
             return node
+
+        if type(node) == gltf2_io.Mesh:
+            return self.__handle_mesh(node)
 
         # traverse nodes of a child of root property type and add them to the glTF root
         if type(node) in self.__childOfRootPropertyTypeLookup:

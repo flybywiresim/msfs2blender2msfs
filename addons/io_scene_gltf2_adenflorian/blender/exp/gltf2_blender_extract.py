@@ -216,7 +216,8 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
         primitive = {
             MATERIAL_ID: mat_idx,
             INDICES_ID: [],
-            ATTRIBUTES_ID: attributes
+            ATTRIBUTES_ID: attributes,
+            'VertexType': 'VTX',
         }
 
         material_idx_to_primitives[mat_idx] = primitive
@@ -281,6 +282,28 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
             modifier = modifiers_dict["ARMATURE"]
             armature = modifier.object
 
+    for blender_polygon in blender_mesh.polygons:
+        if export_settings['gltf_materials'] is False:
+            primitive = material_idx_to_primitives[0]
+            vertex_index_to_new_indices = material_map[0]
+        elif not blender_polygon.material_index in material_idx_to_primitives:
+            primitive = material_idx_to_primitives[0]
+            vertex_index_to_new_indices = material_map[0]
+        else:
+            primitive = material_idx_to_primitives[blender_polygon.material_index]
+            vertex_index_to_new_indices = material_map[blender_polygon.material_index]
+        
+        if primitive['VertexType'] == 'BLEND4':
+            continue
+        else:
+            for vertex_index in blender_polygon.vertices:
+                vertex = blender_mesh.vertices[vertex_index]
+                weight_count = len(list(filter(lambda x: x.weight > 0, vertex.groups)))
+                if weight_count > 1:
+                    primitive['VertexType'] = 'BLEND4'
+                    break
+                elif weight_count == 1 and primitive['VertexType'] == 'VTX':
+                    primitive['VertexType'] = 'BLEND1'
 
     #
     # Convert polygon to primitive indices and eliminate invalid ones. Assign to material.
@@ -351,7 +374,8 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
 
             v = None
             n = None
-            t = None
+            # t = None
+            t = Vector((1, 1, 1, -1))
             b = None
             uvs = []
             colors = []
@@ -371,34 +395,33 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
             export_settings['bounding_box_min_x'] = min(v.x, export_settings['bounding_box_min_x'])
             export_settings['bounding_box_min_y'] = min(v.y, export_settings['bounding_box_min_y'])
             export_settings['bounding_box_min_z'] = min(v.z, export_settings['bounding_box_min_z'])
-            if blender_polygon.use_smooth or blender_mesh.use_auto_smooth:
-                if blender_mesh.has_custom_normals:
-                    n = convert_swizzle_normal(blender_mesh.loops[loop_index].normal, armature, blender_object, export_settings)
-                else:
-                    n = convert_swizzle_normal(vertex.normal, armature, blender_object, export_settings)
-                if use_tangents:
-                    t = convert_swizzle_tangent(blender_mesh.loops[loop_index].tangent, armature, blender_object, export_settings)
-                    b = convert_swizzle_location(blender_mesh.loops[loop_index].bitangent, armature, blender_object, export_settings)
-            else:
-                n = convert_swizzle_normal(face_normal, armature, blender_object, export_settings)
-                if use_tangents:
-                    t = convert_swizzle_tangent(face_tangent, armature, blender_object, export_settings)
-                    b = convert_swizzle_location(face_bitangent, armature, blender_object, export_settings)
+            # if blender_polygon.use_smooth or blender_mesh.use_auto_smooth:
+            # if blender_mesh.has_custom_normals:
+            #     n = convert_swizzle_normal(blender_mesh.loops[loop_index].normal, armature, blender_object, export_settings)
+            # else:
+            n = convert_swizzle_normal(vertex.normal, armature, blender_object, export_settings)
+            # if use_tangents:
+                # t = convert_swizzle_tangent(blender_mesh.loops[loop_index].tangent, armature, blender_object, export_settings)
+                # b = convert_swizzle_location(blender_mesh.loops[loop_index].bitangent, armature, blender_object, export_settings)
+            # else:
+            #     n = convert_swizzle_normal(face_normal, armature, blender_object, export_settings)
+            #     if use_tangents:
+            #         # t = convert_swizzle_tangent(face_tangent, armature, blender_object, export_settings)
+            #         b = convert_swizzle_location(face_bitangent, armature, blender_object, export_settings)
 
-            if use_tangents:
-                tv = Vector((t[0], t[1], t[2]))
-                bv = Vector((b[0], b[1], b[2]))
-                nv = Vector((n[0], n[1], n[2]))
+            # if use_tangents:
+            #     tv = Vector((t[0], t[1], t[2]))
+            #     bv = Vector((b[0], b[1], b[2]))
+            #     nv = Vector((n[0], n[1], n[2]))
 
-                if (nv.cross(tv)).dot(bv) < 0.0:
-                    t[3] = -1.0
+                # if (nv.cross(tv)).dot(bv) < 0.0:
+                #     t[3] = -1.0
 
             if blender_mesh.uv_layers.active:
                 for tex_coord_index in range(0, tex_coord_max):
                     uv = blender_mesh.uv_layers[tex_coord_index].data[loop_index].uv
                     uvs.append([uv.x, 1.0 - uv.y])
 
-            #
 
             if color_max > 0 and export_color:
                 for color_index in range(0, color_max):
@@ -464,14 +487,18 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
 
                     for fill in range(0, 4 - len(joint)):
                         joint.append(0)
-                        weight.append(0.0)
+                        if primitive['VertexType'] == 'BLEND4':
+                            weight.append(0.0)
 
                     joints.append(joint)
                     weights.append(weight)
 
             for fill in range(0, bone_max - bone_count):
                 joints.append([0, 0, 0, 0])
-                weights.append([0.0, 0.0, 0.0, 0.0])
+                if primitive['VertexType'] == 'BLEND4':
+                    weights.append([0.0, 0.0, 0.0, 0.0])
+                else:
+                    weights.append([0.0])
 
             #
 
@@ -533,11 +560,17 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
                         found = False
                         break
 
-                    if attributes[NORMAL_ATTRIBUTE][current_new_index * 3 + i] != n[i]:
-                        found = False
-                        break
+                    # if attributes[NORMAL_ATTRIBUTE][current_new_index * 3 + i] != n[i]:
+                        # found = False
+                        # break
 
-                if use_tangents:
+                if found:
+                    for i in range(0, 3):
+                        if attributes[NORMAL_ATTRIBUTE][current_new_index * 4 + i] != n[i]:
+                            found = False
+                            break
+
+                if found and use_tangents:
                     for i in range(0, 4):
                         if attributes[TANGENT_ATTRIBUTE][current_new_index * 4 + i] != t[i]:
                             found = False
@@ -578,9 +611,14 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
                             if attributes[joint_id][current_new_index * 4 + i] != joint[i]:
                                 found = False
                                 break
-                            if attributes[weight_id][current_new_index * 4 + i] != weight[i]:
-                                found = False
-                                break
+                            if primitive['VertexType'] == 'BLEND1':
+                                if attributes[weight_id][current_new_index] != weight[0]:
+                                    found = False
+                                    break
+                            else:
+                                if attributes[weight_id][current_new_index * 4 + i] != weight[i]:
+                                    found = False
+                                    break
 
                 if export_settings[gltf2_blender_export_keys.MORPH]:
                     for morph_index in range(0, morph_max):
@@ -631,6 +669,8 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
 
             attributes[POSITION_ATTRIBUTE].extend(v)
             attributes[NORMAL_ATTRIBUTE].extend(n)
+            # Append a 0 to make the normal a Vec4
+            attributes[NORMAL_ATTRIBUTE].append(0)
             if use_tangents:
                 attributes[TANGENT_ATTRIBUTE].extend(t)
 
