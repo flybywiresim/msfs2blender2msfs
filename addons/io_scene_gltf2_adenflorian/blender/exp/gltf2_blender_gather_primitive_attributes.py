@@ -32,7 +32,7 @@ def gather_primitive_attributes(blender_primitive, export_settings, asobo_vertex
     attributes.update(__gather_normal(blender_primitive, export_settings))
     attributes.update(__gather_texcoord(blender_primitive, export_settings))
     attributes.update(__gather_skins(blender_primitive, export_settings, asobo_vertex_type))
-    attributes.update(__gather_colors(blender_primitive, export_settings))
+    attributes.update(__gather_colors(blender_primitive, export_settings, asobo_vertex_type))
     return attributes
 
 
@@ -47,10 +47,8 @@ def __gather_position(blender_primitive, export_settings):
             count=len(position) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec3),
             extensions=None,
             extras=None,
-            # max=gltf2_blender_utils.max_components(position, gltf2_io_constants.DataType.Vec3),
-            # min=gltf2_blender_utils.min_components(position, gltf2_io_constants.DataType.Vec3),
-            max=None,
-            min=None,
+            max=gltf2_blender_utils.max_components(position, gltf2_io_constants.DataType.Vec3),
+            min=gltf2_blender_utils.min_components(position, gltf2_io_constants.DataType.Vec3),
             name=None,
             normalized=None,
             sparse=None,
@@ -139,18 +137,20 @@ def __gather_texcoord(blender_primitive, export_settings):
     return attributes
 
 
-def __gather_colors(blender_primitive, export_settings):
+def __gather_colors(blender_primitive, export_settings, asobo_vertex_type):
     attributes = {}
     if export_settings[gltf2_blender_export_keys.COLORS]:
         color_index = 0
         color_id = 'COLOR_' + str(color_index)
+        component_type = gltf2_io_constants.ComponentType.UnsignedShort if asobo_vertex_type == 'VTX' else gltf2_io_constants.ComponentType.Byte
+        converter = (lambda x: round(x * 65535.0)) if asobo_vertex_type == 'VTX' else (lambda x: round(x * 127.0))
         while blender_primitive["attributes"].get(color_id) is not None:
             internal_color = blender_primitive["attributes"][color_id]
             attributes[color_id] = gltf2_io.Accessor(
-                buffer_view=list(map(lambda x: round(x * 127.0), internal_color)),
+                buffer_view=list(map(converter, internal_color)),
                 byte_offset=None,
                 # component_type=gltf2_io_constants.ComponentType.Float,
-                component_type=gltf2_io_constants.ComponentType.Byte,
+                component_type=component_type,
                 count=len(internal_color) // gltf2_io_constants.DataType.num_elements(gltf2_io_constants.DataType.Vec4),
                 extensions=None,
                 extras=None,
@@ -209,7 +209,7 @@ def __gather_skins(blender_primitive, export_settings, asobo_vertex_type):
                         internal_weight[idx:idx + 4] = [w * factor for w in weight_slice]
             weight_data_type = gltf2_io_constants.DataType.Scalar if asobo_vertex_type == 'BLEND1' else gltf2_io_constants.DataType.Vec4
             weight = gltf2_io.Accessor(
-                buffer_view=internal_weight,
+                buffer_view=internal_weight if asobo_vertex_type == 'BLEND1' else [round(x * 65535.0) for x in internal_weight],
                 byte_offset=None,
                 component_type=gltf2_io_constants.ComponentType.Float if asobo_vertex_type == 'BLEND1' else gltf2_io_constants.ComponentType.UnsignedShort,
                 count=len(internal_weight) // gltf2_io_constants.DataType.num_elements(

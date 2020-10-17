@@ -402,17 +402,43 @@ class GlTF2Exporter:
         if any('BLEND' in x.extras['ASOBO_primitive']['VertexType'] for x in mesh.primitives):
             # Each primitive gets its own accessors
             for i, primitive in enumerate(mesh.primitives):
+                buffer_view_name = 'BufferViewVertex4Blend' if primitive.extras['ASOBO_primitive']['VertexType'] == 'BLEND4' else 'BufferViewVertex1Blend'
+                blend_buffer_view = self.__asobo_buffer_views[buffer_view_name]
+                expected_byte_stride = 48 if primitive.extras['ASOBO_primitive']['VertexType'] == 'BLEND4' else 44
+
+                actual_byte_stride = 0
+                for vidx in range(primitive.attributes['POSITION'].count):
+                    for attr in primitive.attributes:
+                        attr_accessor = primitive.attributes[attr]
+                        elements_to_pull = self.component_nb_dict[attr_accessor.type]
+                        data_for_vertex = attr_accessor.buffer_view[vidx:vidx + elements_to_pull]
+                        binary_data = gltf2_io_binary_data.BinaryData.from_list(data_for_vertex, attr_accessor.component_type)
+                        offset = blend_buffer_view.buffer.append_data(binary_data)
+                        if vidx == 0:
+                            attr_accessor.byte_offset = offset
+                            if attr_accessor.byte_offset == 0:
+                                attr_accessor.byte_offset = None
+                            actual_byte_stride += binary_data.byte_length
+                    if vidx == 0:
+                        assert actual_byte_stride == expected_byte_stride
+
                 for attr in primitive.attributes:
-                    # data = primitive.attributes[attr]
-                    primitive.attributes[attr] = 0
+                    primitive.attributes[attr].buffer_view = self.__gltf.buffer_views.index(blend_buffer_view)
+                    primitive.attributes[attr].name = f'{mesh.name}_vertices#0_{attr}'
+                
+                for attr in primitive.attributes:
+                    primitive.attributes[attr] = self.__to_reference(primitive.attributes[attr])
                 indices_accessor = primitive.indices
                 binary_data = gltf2_io_binary_data.BinaryData.from_list(indices_accessor.buffer_view, indices_accessor.component_type)
                 offset = self.__asobo_buffer_views['BufferViewIndex'].buffer.append_data(binary_data)
                 indices_accessor.buffer_view = self.__gltf.buffer_views.index(self.__asobo_buffer_views['BufferViewIndex'])
                 indices_accessor.byte_offset = offset
+                if indices_accessor.byte_offset == 0:
+                    indices_accessor.byte_offset = None
                 indices_accessor.name = f'{mesh.name}_indices#{i}'
                 primitive.indices = self.__to_reference(indices_accessor)
                 primitive.material = self.__traverse(primitive.material)
+                primitive.attributes = dict(sorted(primitive.attributes.items()))
         else:
             # Accessors are shared between the primitives
             all_indices = []
@@ -424,10 +450,14 @@ class GlTF2Exporter:
             offset = self.__asobo_buffer_views['BufferViewIndex'].buffer.append_data(binary_data)
             indices_accessor.buffer_view = self.__gltf.buffer_views.index(self.__asobo_buffer_views['BufferViewIndex'])
             indices_accessor.byte_offset = offset
+            if indices_accessor.byte_offset == 0:
+                indices_accessor.byte_offset = None
             indices_accessor.count = len(all_indices)
             indices_accessor.name = f'{mesh.name}_indices#{len(mesh.primitives) - 1}'
             vertex_nd_buffer_view = self.__asobo_buffer_views['BufferViewVertexND']
+            expected_byte_stride = 36
 
+            actual_byte_stride = 0
             for vidx in range(first_primitive.attributes['POSITION'].count):
                 for attr in first_primitive.attributes:
                     attr_accessor = first_primitive.attributes[attr]
@@ -437,6 +467,11 @@ class GlTF2Exporter:
                     offset = vertex_nd_buffer_view.buffer.append_data(binary_data)
                     if vidx == 0:
                         attr_accessor.byte_offset = offset
+                        if attr_accessor.byte_offset == 0:
+                            attr_accessor.byte_offset = None
+                        actual_byte_stride += binary_data.byte_length
+                if vidx == 0:
+                    assert actual_byte_stride == expected_byte_stride
 
             for attr in first_primitive.attributes:
                 first_primitive.attributes[attr].buffer_view = self.__gltf.buffer_views.index(vertex_nd_buffer_view)
@@ -445,9 +480,6 @@ class GlTF2Exporter:
             total_asobo_primitive_count = 0
             for pidx, primitive in enumerate(mesh.primitives):
                 for attr in primitive.attributes:
-                    # data = primitive.attributes[attr]
-                    # put vertex attr data into asobo buffers interleaved
-                    # pick which buffer view to put data into
                     primitive.attributes[attr] = self.__to_reference(first_primitive.attributes[attr])
                 primitive.indices = self.__to_reference(indices_accessor)
                 primitive.material = self.__traverse(primitive.material)
@@ -457,6 +489,23 @@ class GlTF2Exporter:
                 primitive.attributes = dict(sorted(primitive.attributes.items()))
         idx = self.__to_reference(mesh)
         return idx
+    
+    def __handle_anim_sampler(self, input_or_output):
+        if input_or_output.type == 'SCALAR':
+            animation_x_buffer_view = self.__asobo_buffer_views['bufferViewAnimationFloatScalar']
+        elif input_or_output.type == 'VEC3':
+            animation_x_buffer_view = self.__asobo_buffer_views['bufferViewAnimationFloatVec3']
+        elif input_or_output.type == 'VEC4':
+            animation_x_buffer_view = self.__asobo_buffer_views['bufferViewAnimationFloatVec4']
+        else:
+            assert False
+        if type(input_or_output.buffer_view) != int:
+            binary_data = input_or_output.buffer_view
+            input_or_output.byte_offset = animation_x_buffer_view.buffer.append_data(binary_data)
+            if input_or_output.byte_offset == 0:
+                input_or_output.byte_offset = None
+            input_or_output.buffer_view = self.__gltf.buffer_views.index(animation_x_buffer_view)
+        return self.__to_reference(input_or_output)
 
     def __traverse(self, node):
         """
@@ -478,7 +527,25 @@ class GlTF2Exporter:
             return node
 
         if type(node) == gltf2_io.Mesh:
-            return self.__handle_mesh(node)
+            if type(node.primitives[0].indices) == int:
+                return self.__to_reference(node)
+            else:
+                return self.__handle_mesh(node)
+
+        if type(node) == gltf2_io.Skin:
+            float_mat4_buffer_view = self.__asobo_buffer_views['bufferViewFloatMat4']
+            if type(node.inverse_bind_matrices) != int:
+                binary_data = node.inverse_bind_matrices.buffer_view
+                node.inverse_bind_matrices.byte_offset = float_mat4_buffer_view.buffer.append_data(binary_data)
+                if node.inverse_bind_matrices.byte_offset == 0:
+                    node.inverse_bind_matrices.byte_offset = None
+                node.inverse_bind_matrices.buffer_view = self.__gltf.buffer_views.index(float_mat4_buffer_view)
+                node.inverse_bind_matrices = self.__to_reference(node.inverse_bind_matrices)
+
+        if type(node) == gltf2_io.Animation:
+            for sampler in node.samplers:
+                sampler.input = self.__handle_anim_sampler(sampler.input)
+                sampler.output = self.__handle_anim_sampler(sampler.output)
 
         # traverse nodes of a child of root property type and add them to the glTF root
         if type(node) in self.__childOfRootPropertyTypeLookup:
