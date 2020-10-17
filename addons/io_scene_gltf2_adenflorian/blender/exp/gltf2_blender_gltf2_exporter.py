@@ -361,7 +361,8 @@ class GlTF2Exporter:
             return index
 
     def __add_image(self, image: gltf2_io_image_data.ImageData):
-        name = image.adjusted_name()
+        # name = image.adjusted_name()
+        name = image.name
         count = 1
         regex = re.compile(r"-\d+$")
         while name in self.__images.keys():

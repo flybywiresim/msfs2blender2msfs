@@ -41,7 +41,11 @@ def gather_image(
         return None
 
     mime_type = __gather_mime_type(blender_shader_sockets_or_texture_slots, image_data, export_settings)
-    name = __gather_name(image_data, export_settings)
+    # name = __gather_name(image_data, export_settings)
+
+    results = [__get_tex_from_socket(socket, export_settings) for socket in blender_shader_sockets_or_texture_slots]
+    name = results[0].shader_node.image.name
+    name, _ = os.path.splitext(name)
 
     uri = __gather_uri(image_data, mime_type, name, export_settings)
     buffer_view = __gather_buffer_view(image_data, mime_type, name, export_settings)
