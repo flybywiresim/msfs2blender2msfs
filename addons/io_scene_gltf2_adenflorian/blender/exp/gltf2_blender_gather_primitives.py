@@ -137,6 +137,16 @@ def bar(primitives, attr):
 def __gather_indices(blender_primitive, blender_mesh, modifiers, export_settings):
     indices = blender_primitive['indices']
 
+    new_indices = []
+
+    # Reverse order of indices so game will render the proper front face
+    for i in range(0, len(indices), 3):
+        new_indices.append(indices[i + 2])
+        new_indices.append(indices[i + 1])
+        new_indices.append(indices[i + 0])
+    
+    indices = new_indices
+
     # NOTE: Values used by some graphics APIs as "primitive restart" values are disallowed.
     # Specifically, the values 65535 (in UINT16) and 4294967295 (in UINT32) cannot be used as indices.
     # https://github.com/KhronosGroup/glTF/issues/1142
