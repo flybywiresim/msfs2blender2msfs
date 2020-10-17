@@ -73,6 +73,7 @@ def gather_animations(blender_object: bpy.types.Object,
 
         # No need to set active shapekeys animations, this is needed for bone baking
 
+        print(f'exporting animation track {track_name}')
         animation = __gather_animation(blender_action, blender_object, export_settings)
         if animation is not None:
             animations.append(animation)

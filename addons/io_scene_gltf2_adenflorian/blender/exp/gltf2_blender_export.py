@@ -72,6 +72,8 @@ def __gather_gltf(exporter, export_settings):
 
     active_scene_idx, scenes, animations = gltf2_blender_gather.gather_gltf2(export_settings)
 
+    print(f'gather_gltf2 complete')
+
     plan = {'active_scene_idx': active_scene_idx, 'scenes': scenes, 'animations': animations}
     export_user_extensions('gather_gltf_hook', export_settings, plan)
     active_scene_idx, scenes, animations = plan['active_scene_idx'], plan['scenes'], plan['animations']

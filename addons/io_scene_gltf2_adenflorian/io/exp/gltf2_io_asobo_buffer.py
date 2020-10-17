@@ -23,14 +23,29 @@ class AsoboBuffer:
         self.__data = b""
         self.__buffer_index = buffer_index
 
-    def append_data(self, binary_data: gltf2_io_binary_data.BinaryData) -> gltf2_io.BufferView:
+    def append_data(self, binary_data: gltf2_io_binary_data.BinaryData, check_padding, calculate_offset) -> gltf2_io.BufferView:
         """Add binary data to the buffer. Return a glTF BufferView."""
-        offset = len(self.__data)
+        offset = None
+        if calculate_offset:
+            offset = len(self.__data)
+
         self.__data += binary_data.data
 
         # offsets should be a multiple of 4 --> therefore add padding if necessary
-        padding = (4 - (binary_data.byte_length % 4)) % 4
-        self.__data += b"\x00" * padding
+        if check_padding:
+            padding = (4 - (binary_data.byte_length % 4)) % 4
+            if padding != 0:
+                self.__data += b"\x00" * padding
+
+        return offset
+
+    def append_bytes(self, binary_data: bytes, calculate_offset) -> gltf2_io.BufferView:
+        """Add binary data to the buffer. Return a glTF BufferView."""
+        offset = None
+        if calculate_offset:
+            offset = len(self.__data)
+
+        self.__data += binary_data
 
         return offset
 

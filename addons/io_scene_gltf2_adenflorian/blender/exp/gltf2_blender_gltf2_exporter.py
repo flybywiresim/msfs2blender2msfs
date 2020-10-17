@@ -14,16 +14,61 @@
 import re
 import os
 import urllib.parse
+import ctypes
+import struct
 from typing import List
 
 from ... import get_version_string
 from io_scene_gltf2_adenflorian.io.com import gltf2_io
 from io_scene_gltf2_adenflorian.io.com import gltf2_io_extensions
+# from io_scene_gltf2_adenflorian.io.com import gltf2_io_constants
 from io_scene_gltf2_adenflorian.io.exp import gltf2_io_binary_data
 from io_scene_gltf2_adenflorian.io.exp import gltf2_io_buffer
 from io_scene_gltf2_adenflorian.io.exp import gltf2_io_asobo_buffer
 from io_scene_gltf2_adenflorian.io.exp import gltf2_io_image_data
 from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_export_keys
+
+
+STRUCT_POSITION = struct.Struct('fff')
+STRUCT_TANGENT = struct.Struct('bbbb')
+STRUCT_NORMAL = struct.Struct('bbbb')
+STRUCT_UV = struct.Struct('ee')
+STRUCT_JOINT = struct.Struct('HHHH')
+STRUCT_WEIGHT1 = struct.Struct('f')
+STRUCT_WEIGHT4 = struct.Struct('HHHH')
+STRUCT_COLOR_VTX = struct.Struct('HHHH')
+STRUCT_COLOR_BLEND = struct.Struct('bbbb')
+
+# attr_to_struct_vtx = {
+#     "POSITION": STRUCT_POSITION,
+#     "TANGENT": STRUCT_TANGENT,
+#     "NORMAL": STRUCT_NORMAL,
+#     "TEXCOORD_0": STRUCT_UV,
+#     "TEXCOORD_1": STRUCT_UV,
+#     "COLOR_0": STRUCT_COLOR_VTX,
+# }
+
+# attr_to_struct_blend1 = {
+#     "POSITION": STRUCT_POSITION,
+#     "TANGENT": STRUCT_TANGENT,
+#     "NORMAL": STRUCT_NORMAL,
+#     "TEXCOORD_0": STRUCT_UV,
+#     "TEXCOORD_1": STRUCT_UV,
+#     "JOINTS_0": STRUCT_JOINT,
+#     "WEIGHTS_0": STRUCT_WEIGHT1,
+#     "COLOR_0": STRUCT_COLOR_BLEND,
+# }
+
+# attr_to_struct_blend4 = {
+#     "POSITION": STRUCT_POSITION,
+#     "TANGENT": STRUCT_TANGENT,
+#     "NORMAL": STRUCT_NORMAL,
+#     "TEXCOORD_0": STRUCT_UV,
+#     "TEXCOORD_1": STRUCT_UV,
+#     "JOINTS_0": STRUCT_JOINT,
+#     "WEIGHTS_0": STRUCT_WEIGHT4,
+#     "COLOR_0": STRUCT_COLOR_BLEND,
+# }
 
 
 class GlTF2Exporter:
@@ -401,27 +446,86 @@ class GlTF2Exporter:
 
     def __handle_mesh(self, mesh):
         if any('BLEND' in x.extras['ASOBO_primitive']['VertexType'] for x in mesh.primitives):
+            print(f'__handle_mesh skinned {mesh.name}')
             # Each primitive gets its own accessors
             for i, primitive in enumerate(mesh.primitives):
-                buffer_view_name = 'BufferViewVertex4Blend' if primitive.extras['ASOBO_primitive']['VertexType'] == 'BLEND4' else 'BufferViewVertex1Blend'
+                is_blend4 = primitive.extras['ASOBO_primitive']['VertexType'] == 'BLEND4'
+                buffer_view_name = 'BufferViewVertex4Blend' if is_blend4 else 'BufferViewVertex1Blend'
                 blend_buffer_view = self.__asobo_buffer_views[buffer_view_name]
-                expected_byte_stride = 48 if primitive.extras['ASOBO_primitive']['VertexType'] == 'BLEND4' else 44
+                expected_byte_stride = 48 if is_blend4 else 44
 
-                actual_byte_stride = 0
+                the_buffer = ctypes.create_string_buffer(expected_byte_stride * primitive.attributes['POSITION'].count)
+
+                # for attr in primitive.attributes:
+                #     attr_accessor = primitive.attributes[attr]
+                #     attr_accessor.buffer_view = gltf2_io_binary_data.BinaryData.from_list(attr_accessor.buffer_view, attr_accessor.component_type)
+            
+                offset = blend_buffer_view.buffer.byte_length
+                
+                if offset + 0 == 0:
+                    primitive.attributes['POSITION'].byte_offset = None
+                else:
+                    primitive.attributes['POSITION'].byte_offset = offset + 0
+                primitive.attributes['TANGENT'].byte_offset = offset + 12
+                primitive.attributes['NORMAL'].byte_offset = offset + 16
+                primitive.attributes['TEXCOORD_0'].byte_offset = offset + 20
+                primitive.attributes['TEXCOORD_1'].byte_offset = offset + 24
+                primitive.attributes['JOINTS_0'].byte_offset = offset + 28
+                primitive.attributes['WEIGHTS_0'].byte_offset = offset + 36
+                if is_blend4:
+                    primitive.attributes['COLOR_0'].byte_offset = offset + 44
+                else:
+                    primitive.attributes['COLOR_0'].byte_offset = offset + 40
+
+
+                # actual_byte_stride = 0
                 for vidx in range(primitive.attributes['POSITION'].count):
-                    for attr in primitive.attributes:
-                        attr_accessor = primitive.attributes[attr]
-                        elements_to_pull = self.component_nb_dict[attr_accessor.type]
-                        data_for_vertex = attr_accessor.buffer_view[vidx:vidx + elements_to_pull]
-                        binary_data = gltf2_io_binary_data.BinaryData.from_list(data_for_vertex, attr_accessor.component_type)
-                        offset = blend_buffer_view.buffer.append_data(binary_data)
-                        if vidx == 0:
-                            attr_accessor.byte_offset = offset
-                            if attr_accessor.byte_offset == 0:
-                                attr_accessor.byte_offset = None
-                            actual_byte_stride += binary_data.byte_length
-                    if vidx == 0:
-                        assert actual_byte_stride == expected_byte_stride
+                
+                    start = vidx * expected_byte_stride
+                    
+                    STRUCT_POSITION.pack_into(the_buffer, start, *primitive.attributes['POSITION'].buffer_view[vidx * 3:vidx * 3 + 3])
+                    STRUCT_TANGENT.pack_into(the_buffer, start + 12, *primitive.attributes['TANGENT'].buffer_view[vidx * 4:vidx * 4 + 4])
+                    STRUCT_NORMAL.pack_into(the_buffer, start + 16, *primitive.attributes['NORMAL'].buffer_view[vidx * 4:vidx * 4 + 4])
+                    STRUCT_UV.pack_into(the_buffer, start + 20, *primitive.attributes['TEXCOORD_0'].buffer_view[vidx * 2:vidx * 2 + 2])
+                    STRUCT_UV.pack_into(the_buffer, start + 24, *primitive.attributes['TEXCOORD_1'].buffer_view[vidx * 2:vidx * 2 + 2])
+                    STRUCT_JOINT.pack_into(the_buffer, start + 28, *primitive.attributes['JOINTS_0'].buffer_view[vidx * 4:vidx * 4 + 4])
+                    if is_blend4:
+                        STRUCT_WEIGHT4.pack_into(the_buffer, start + 36, *primitive.attributes['WEIGHTS_0'].buffer_view[vidx * 4:vidx * 4 + 4])
+                        STRUCT_COLOR_BLEND.pack_into(the_buffer, start + 44, *primitive.attributes['COLOR_0'].buffer_view[vidx * 4:vidx * 4 + 4])
+                    else:
+                        STRUCT_WEIGHT1.pack_into(the_buffer, start + 36, *primitive.attributes['WEIGHTS_0'].buffer_view[vidx * 1:vidx * 1 + 1])
+                        STRUCT_COLOR_BLEND.pack_into(the_buffer, start + 40, *primitive.attributes['COLOR_0'].buffer_view[vidx * 4:vidx * 4 + 4])
+
+
+                    # for attr in primitive.attributes:
+                    #     attr_accessor = primitive.attributes[attr]
+
+                    #     # elements_to_pull = self.component_nb_dict[attr_accessor.type]
+                    #     # data_for_vertex = attr_accessor.buffer_view[vidx:vidx + elements_to_pull]
+                    #     # binary_data = gltf2_io_binary_data.BinaryData.from_list(data_for_vertex, attr_accessor.component_type)
+                    #     # offset = blend_buffer_view.buffer.append_data(binary_data, False, vidx == 0)
+
+
+                    #     elements_to_pull = self.component_nb_dict[attr_accessor.type]
+                    #     chunk_byte_size = gltf2_io_constants.ComponentType.get_size(attr_accessor.component_type) * elements_to_pull
+                    #     start = vidx * chunk_byte_size
+                    #     end = start + chunk_byte_size
+                    #     data_for_vertex = attr_accessor.buffer_view.data[start:end]
+                    #     offset = blend_buffer_view.buffer.append_bytes(data_for_vertex, vidx == 0)
+
+
+
+                    #     if vidx == 0:
+                    #         attr_accessor.byte_offset = offset
+                    #         if attr_accessor.byte_offset == 0:
+                    #             attr_accessor.byte_offset = None
+                    #         # actual_byte_stride += binary_data.byte_length
+                    #         actual_byte_stride += len(data_for_vertex)
+                    # if vidx == 0:
+                    #     assert actual_byte_stride == expected_byte_stride
+
+                
+                blend_buffer_view.buffer.append_bytes(bytes(the_buffer), False)
 
                 for attr in primitive.attributes:
                     primitive.attributes[attr].buffer_view = self.__gltf.buffer_views.index(blend_buffer_view)
@@ -431,7 +535,7 @@ class GlTF2Exporter:
                     primitive.attributes[attr] = self.__to_reference(primitive.attributes[attr])
                 indices_accessor = primitive.indices
                 binary_data = gltf2_io_binary_data.BinaryData.from_list(indices_accessor.buffer_view, indices_accessor.component_type)
-                offset = self.__asobo_buffer_views['BufferViewIndex'].buffer.append_data(binary_data)
+                offset = self.__asobo_buffer_views['BufferViewIndex'].buffer.append_data(binary_data, True, True)
                 indices_accessor.buffer_view = self.__gltf.buffer_views.index(self.__asobo_buffer_views['BufferViewIndex'])
                 indices_accessor.byte_offset = offset
                 if indices_accessor.byte_offset == 0:
@@ -441,6 +545,7 @@ class GlTF2Exporter:
                 primitive.material = self.__traverse(primitive.material)
                 primitive.attributes = dict(sorted(primitive.attributes.items()))
         else:
+            print(f'__handle_mesh unskinned {mesh.name}')
             # Accessors are shared between the primitives
             all_indices = []
             for primitive in mesh.primitives:
@@ -448,7 +553,7 @@ class GlTF2Exporter:
             first_primitive = mesh.primitives[0]
             indices_accessor = first_primitive.indices
             binary_data = gltf2_io_binary_data.BinaryData.from_list(all_indices, indices_accessor.component_type)
-            offset = self.__asobo_buffer_views['BufferViewIndex'].buffer.append_data(binary_data)
+            offset = self.__asobo_buffer_views['BufferViewIndex'].buffer.append_data(binary_data, True, True)
             indices_accessor.buffer_view = self.__gltf.buffer_views.index(self.__asobo_buffer_views['BufferViewIndex'])
             indices_accessor.byte_offset = offset
             if indices_accessor.byte_offset == 0:
@@ -458,21 +563,62 @@ class GlTF2Exporter:
             vertex_nd_buffer_view = self.__asobo_buffer_views['BufferViewVertexND']
             expected_byte_stride = 36
 
-            actual_byte_stride = 0
+            the_buffer = ctypes.create_string_buffer(expected_byte_stride * first_primitive.attributes['POSITION'].count)
+
+            # for attr in first_primitive.attributes:
+            #     attr_accessor = first_primitive.attributes[attr]
+            #     attr_accessor.buffer_view = gltf2_io_binary_data.BinaryData.from_list(attr_accessor.buffer_view, attr_accessor.component_type)
+            
+            offset = vertex_nd_buffer_view.buffer.byte_length
+            
+            if offset + 0 == 0:
+                first_primitive.attributes['POSITION'].byte_offset = None
+            else:
+                first_primitive.attributes['POSITION'].byte_offset = offset + 0
+            first_primitive.attributes['TANGENT'].byte_offset = offset + 12
+            first_primitive.attributes['NORMAL'].byte_offset = offset + 16
+            first_primitive.attributes['TEXCOORD_0'].byte_offset = offset + 20
+            first_primitive.attributes['TEXCOORD_1'].byte_offset = offset + 24
+            first_primitive.attributes['COLOR_0'].byte_offset = offset + 28
+
+            # actual_byte_stride = 0
             for vidx in range(first_primitive.attributes['POSITION'].count):
-                for attr in first_primitive.attributes:
-                    attr_accessor = first_primitive.attributes[attr]
-                    elements_to_pull = self.component_nb_dict[attr_accessor.type]
-                    data_for_vertex = attr_accessor.buffer_view[vidx:vidx + elements_to_pull]
-                    binary_data = gltf2_io_binary_data.BinaryData.from_list(data_for_vertex, attr_accessor.component_type)
-                    offset = vertex_nd_buffer_view.buffer.append_data(binary_data)
-                    if vidx == 0:
-                        attr_accessor.byte_offset = offset
-                        if attr_accessor.byte_offset == 0:
-                            attr_accessor.byte_offset = None
-                        actual_byte_stride += binary_data.byte_length
-                if vidx == 0:
-                    assert actual_byte_stride == expected_byte_stride
+                
+                start = vidx * expected_byte_stride
+                
+                STRUCT_POSITION.pack_into(the_buffer, start, *first_primitive.attributes['POSITION'].buffer_view[vidx * 3:vidx * 3 + 3])
+                STRUCT_TANGENT.pack_into(the_buffer, start + 12, *first_primitive.attributes['TANGENT'].buffer_view[vidx * 4:vidx * 4 + 4])
+                STRUCT_NORMAL.pack_into(the_buffer, start + 16, *first_primitive.attributes['NORMAL'].buffer_view[vidx * 4:vidx * 4 + 4])
+                STRUCT_UV.pack_into(the_buffer, start + 20, *first_primitive.attributes['TEXCOORD_0'].buffer_view[vidx * 2:vidx * 2 + 2])
+                STRUCT_UV.pack_into(the_buffer, start + 24, *first_primitive.attributes['TEXCOORD_1'].buffer_view[vidx * 2:vidx * 2 + 2])
+                STRUCT_COLOR_VTX.pack_into(the_buffer, start + 28, *first_primitive.attributes['COLOR_0'].buffer_view[vidx * 4:vidx * 4 + 4])
+
+
+                # for attr in first_primitive.attributes:
+                #     attr_accessor = first_primitive.attributes[attr]
+
+                #     # elements_to_pull = self.component_nb_dict[attr_accessor.type]
+                #     data_for_vertex = attr_accessor.buffer_view[vidx:vidx + elements_to_pull]
+                #     # binary_data = gltf2_io_binary_data.BinaryData.from_list(data_for_vertex, attr_accessor.component_type)
+                #     # offset = vertex_nd_buffer_view.buffer.append_data(binary_data, False, vidx == 0)
+
+                #     elements_to_pull = self.component_nb_dict[attr_accessor.type]
+                #     chunk_byte_size = gltf2_io_constants.ComponentType.get_size(attr_accessor.component_type) * elements_to_pull
+                #     start = vidx * chunk_byte_size
+                    # end = start + chunk_byte_size
+                    # data_for_vertex = attr_accessor.buffer_view.data[start:end]
+                    # offset = vertex_nd_buffer_view.buffer.append_bytes(data_for_vertex, vidx == 0)
+
+                #     if vidx == 0:
+                #         attr_accessor.byte_offset = offset
+                #         if attr_accessor.byte_offset == 0:
+                #             attr_accessor.byte_offset = None
+                #         # actual_byte_stride += binary_data.byte_length
+                #         actual_byte_stride += len(data_for_vertex)
+                # if vidx == 0:
+                #     assert actual_byte_stride == expected_byte_stride
+            
+            vertex_nd_buffer_view.buffer.append_bytes(bytes(the_buffer), False)
 
             for attr in first_primitive.attributes:
                 first_primitive.attributes[attr].buffer_view = self.__gltf.buffer_views.index(vertex_nd_buffer_view)
@@ -502,7 +648,7 @@ class GlTF2Exporter:
             assert False
         if type(input_or_output.buffer_view) != int:
             binary_data = input_or_output.buffer_view
-            input_or_output.byte_offset = animation_x_buffer_view.buffer.append_data(binary_data)
+            input_or_output.byte_offset = animation_x_buffer_view.buffer.append_data(binary_data, True, True)
             if input_or_output.byte_offset == 0:
                 input_or_output.byte_offset = None
             input_or_output.buffer_view = self.__gltf.buffer_views.index(animation_x_buffer_view)
@@ -537,7 +683,7 @@ class GlTF2Exporter:
             float_mat4_buffer_view = self.__asobo_buffer_views['bufferViewFloatMat4']
             if type(node.inverse_bind_matrices) != int:
                 binary_data = node.inverse_bind_matrices.buffer_view
-                node.inverse_bind_matrices.byte_offset = float_mat4_buffer_view.buffer.append_data(binary_data)
+                node.inverse_bind_matrices.byte_offset = float_mat4_buffer_view.buffer.append_data(binary_data, True, True)
                 if node.inverse_bind_matrices.byte_offset == 0:
                     node.inverse_bind_matrices.byte_offset = None
                 node.inverse_bind_matrices.buffer_view = self.__gltf.buffer_views.index(float_mat4_buffer_view)
