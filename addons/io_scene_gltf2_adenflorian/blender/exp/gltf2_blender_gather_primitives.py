@@ -94,6 +94,64 @@ def __gather_cache_primitives(
 
     blender_primitives = gltf2_blender_extract.extract_primitives(
         None, blender_mesh, library, blender_object, vertex_groups, modifiers, export_settings)
+    
+    is_skinned_mesh = any('BLEND' in x['VertexType'] for x in blender_primitives)
+    
+    if not is_skinned_mesh:
+        max_index = 0
+        for internal_primitive in blender_primitives:
+            indices = internal_primitive['indices']
+            indices = [x + max_index for x in indices]
+            internal_primitive['indices'] = indices
+            max_index = max(indices) + 1
+
+    split_primitives = []
+
+    base_vertex_index = None
+
+    for internal_primitive in blender_primitives:
+        indices = internal_primitive['indices']
+        if base_vertex_index is not None:
+            internal_primitive['BaseVertexIndex'] = base_vertex_index
+            indices = [x - base_vertex_index for x in indices]
+            internal_primitive['indices'] = indices
+        max_index = max(indices)
+        if max_index >= 65530:
+            first_big_index = indices.index(65530)
+            mod3 = first_big_index % 3
+            start = first_big_index - mod3
+
+            indices1 = internal_primitive['indices'][:start]
+            new_primitive1 = {
+                'VertexType': internal_primitive['VertexType'],
+                'material': internal_primitive['material'],
+                'attributes': internal_primitive['attributes'],
+                'indices': indices1,
+                'BaseVertexIndex': base_vertex_index,
+            }
+            split_primitives.append(new_primitive1)
+
+            indices2 = internal_primitive['indices'][start:]
+            min_index2 = min(indices2)
+            indices2 = [x - min_index2 for x in indices2]
+            if base_vertex_index is not None:
+                base_vertex_index += min_index2
+            else:
+                base_vertex_index = min_index2
+            new_primitive2 = {
+                'VertexType': internal_primitive['VertexType'],
+                'material': internal_primitive['material'],
+                'attributes': internal_primitive['attributes'],
+                'indices': indices2,
+                'BaseVertexIndex': base_vertex_index,
+            }
+            # TODO Handle mesh primitive that needs to be split into more than parts
+            assert max(indices2) < 65530
+            split_primitives.append(new_primitive2)
+        else:
+            split_primitives.append(internal_primitive)
+    
+    blender_primitives = split_primitives
 
     for internal_primitive in blender_primitives:
         asobo_vertex_type = internal_primitive['VertexType']
@@ -106,12 +164,14 @@ def __gather_cache_primitives(
                 "ASOBO_primitive": {}
             }
         }
+        primitive['extras']['ASOBO_primitive']['BaseVertexIndex'] = internal_primitive['BaseVertexIndex']
         primitive['extras']['ASOBO_primitive']['PrimitiveCount'] = primitive['indices'].count // 3
+        primitive['extras']['ASOBO_primitive']['StartIndex'] = None
         primitive['extras']['ASOBO_primitive']['VertexType'] = asobo_vertex_type
         primitive['extras']['ASOBO_primitive']['VertexVersion'] = 2
         primitives.append(primitive)
 
-    if not any('BLEND' in x['extras']['ASOBO_primitive']['VertexType'] for x in primitives):
+    if not is_skinned_mesh:
         foo(primitives)
 
     return primitives
@@ -154,13 +214,19 @@ def __gather_indices(blender_primitive, blender_mesh, modifiers, export_settings
     # Also, UINT8 mode is not supported:
     # https://github.com/KhronosGroup/glTF/issues/1471
     max_index = max(indices)
-    if max_index < 65535:
-        component_type = gltf2_io_constants.ComponentType.UnsignedShort
-    elif max_index < 4294967295:
-        component_type = gltf2_io_constants.ComponentType.UnsignedInt
-    else:
-        print_console('ERROR', 'A mesh contains too many vertices (' + str(max_index) + ') and needs to be split before export.')
-        return None
+    assert max_index < 65535
+
+    # if max_index >= 65530:
+
+    # MSFS is expecting an unsigned short
+    component_type = gltf2_io_constants.ComponentType.UnsignedShort
+    # if max_index < 65535:
+    #     component_type = gltf2_io_constants.ComponentType.UnsignedShort
+    # elif max_index < 4294967295:
+    #     component_type = gltf2_io_constants.ComponentType.UnsignedInt
+    # else:
+    #     print_console('ERROR', 'A mesh contains too many vertices (' + str(max_index) + ') and needs to be split before export.')
+    #     return None
 
     element_type = gltf2_io_constants.DataType.Scalar
     return gltf2_io.Accessor(

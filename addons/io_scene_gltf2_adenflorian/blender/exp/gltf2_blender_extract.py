@@ -218,6 +218,7 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
             INDICES_ID: [],
             ATTRIBUTES_ID: attributes,
             'VertexType': 'VTX',
+            'BaseVertexIndex': None,
         }
 
         material_idx_to_primitives[mat_idx] = primitive
