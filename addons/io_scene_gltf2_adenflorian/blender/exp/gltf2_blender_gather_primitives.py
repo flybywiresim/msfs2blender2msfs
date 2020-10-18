@@ -96,6 +96,10 @@ def __gather_cache_primitives(
         None, blender_mesh, library, blender_object, vertex_groups, modifiers, export_settings)
     
     is_skinned_mesh = any('BLEND' in x['VertexType'] for x in blender_primitives)
+
+    for prim in blender_primitives:
+        max_index = max(prim['indices'])
+        assert (max_index + 1) == len(prim['attributes']['POSITION']) // 3
     
     if not is_skinned_mesh:
         max_index = 0
@@ -109,49 +113,61 @@ def __gather_cache_primitives(
 
     base_vertex_index = None
 
-    for internal_primitive in blender_primitives:
-        indices = internal_primitive['indices']
-        if base_vertex_index is not None:
-            internal_primitive['BaseVertexIndex'] = base_vertex_index
-            indices = [x - base_vertex_index for x in indices]
-            internal_primitive['indices'] = indices
-        max_index = max(indices)
-        if max_index >= 65530:
-            first_big_index = indices.index(65530)
-            mod3 = first_big_index % 3
-            start = first_big_index - mod3
-
-            indices1 = internal_primitive['indices'][:start]
-            new_primitive1 = {
-                'VertexType': internal_primitive['VertexType'],
-                'material': internal_primitive['material'],
-                'attributes': internal_primitive['attributes'],
-                'indices': indices1,
-                'BaseVertexIndex': base_vertex_index,
-            }
-            split_primitives.append(new_primitive1)
-
-            indices2 = internal_primitive['indices'][start:]
-            min_index2 = min(indices2)
-            indices2 = [x - min_index2 for x in indices2]
+    if not is_skinned_mesh:
+        for internal_primitive in blender_primitives:
+            indices = internal_primitive['indices']
             if base_vertex_index is not None:
-                base_vertex_index += min_index2
+                internal_primitive['BaseVertexIndex'] = base_vertex_index
+                indices = [x - base_vertex_index for x in indices]
+                internal_primitive['indices'] = indices
+            max_index = max(indices)
+            if max_index >= 65530:
+                first_big_index = indices.index(65530)
+                mod3 = first_big_index % 3
+                start = first_big_index - mod3
+
+                indices1 = internal_primitive['indices'][:start]
+                new_primitive1 = {
+                    'VertexType': internal_primitive['VertexType'],
+                    'material': internal_primitive['material'],
+                    'attributes': internal_primitive['attributes'],
+                    'indices': indices1,
+                    'BaseVertexIndex': base_vertex_index,
+                }
+                split_primitives.append(new_primitive1)
+
+                indices2 = internal_primitive['indices'][start:]
+                min_index2 = min(indices2)
+                indices2 = [x - min_index2 for x in indices2]
+                if base_vertex_index is not None:
+                    base_vertex_index += min_index2
+                else:
+                    base_vertex_index = min_index2
+                new_primitive2 = {
+                    'VertexType': internal_primitive['VertexType'],
+                    'material': internal_primitive['material'],
+                    'attributes': {},
+                    'indices': indices2,
+                    'BaseVertexIndex': base_vertex_index,
+                }
+                for attr in new_primitive1['attributes']:
+                    # Empty list, since its all gonna get combined later anyways
+                    new_primitive2['attributes'][attr] = []
+
+                # TODO Handle mesh primitive that needs to be split into more than parts
+                assert max(indices2) < 65530
+                split_primitives.append(new_primitive2)
             else:
-                base_vertex_index = min_index2
-            new_primitive2 = {
-                'VertexType': internal_primitive['VertexType'],
-                'material': internal_primitive['material'],
-                'attributes': internal_primitive['attributes'],
-                'indices': indices2,
-                'BaseVertexIndex': base_vertex_index,
-            }
-            # TODO Handle mesh primitive that needs to be split into more than parts
-            assert max(indices2) < 65530
-            split_primitives.append(new_primitive2)
-        else:
-            split_primitives.append(internal_primitive)
-    
-    blender_primitives = split_primitives
+                split_primitives.append(internal_primitive)
+        blender_primitives = split_primitives
+
+    if not is_skinned_mesh:
+        max_index = max([max(x['indices']) + (x['BaseVertexIndex'] or 0) for x in blender_primitives]) + 1
+        assert max_index == sum([len(x['attributes']['POSITION']) // 3 for x in blender_primitives])
+    else:
+        for prim in blender_primitives:
+            max_index = max(prim['indices'])
+            assert (max_index + 1) == len(prim['attributes']['POSITION']) // 3
 
     for internal_primitive in blender_primitives:
         asobo_vertex_type = internal_primitive['VertexType']
@@ -173,6 +189,13 @@ def __gather_cache_primitives(
 
     if not is_skinned_mesh:
         foo(primitives)
+        max_index = max([max(x['indices'].buffer_view) + (x['extras']['ASOBO_primitive']['BaseVertexIndex'] or 0) for x in primitives])
+        assert (max_index + 1) == primitives[0]['attributes']['POSITION'].count
+    else:
+        for prim in primitives:
+            max_index = max(prim['indices'].buffer_view)
+            assert (max_index + 1) == prim['attributes']['POSITION'].count
+
 
     return primitives
 
