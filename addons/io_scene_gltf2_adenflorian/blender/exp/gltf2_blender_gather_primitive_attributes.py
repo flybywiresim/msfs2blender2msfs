@@ -143,7 +143,9 @@ def __gather_colors(blender_primitive, export_settings, asobo_vertex_type):
         color_index = 0
         color_id = 'COLOR_' + str(color_index)
         component_type = gltf2_io_constants.ComponentType.UnsignedShort if asobo_vertex_type == 'VTX' else gltf2_io_constants.ComponentType.Byte
-        converter = (lambda x: round(x * 65535.0)) if asobo_vertex_type == 'VTX' else (lambda x: round(x * 127.0))
+        # converter = (lambda x: round(x * 65535.0)) if asobo_vertex_type == 'VTX' else (lambda x: round(x * 127.0))
+        # All the colors in the vanilla gltf are 15360
+        converter = (lambda x: 15360) if asobo_vertex_type == 'VTX' else (lambda x: -1)
         while blender_primitive["attributes"].get(color_id) is not None:
             internal_color = blender_primitive["attributes"][color_id]
             attributes[color_id] = gltf2_io.Accessor(
