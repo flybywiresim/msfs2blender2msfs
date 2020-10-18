@@ -859,7 +859,8 @@ class ImportGLTF2(Operator, ImportHelper):
                ("FLAT", "Flat Shading", ""),
                ("SMOOTH", "Smooth Shading", "")),
         description="How normals are computed during import",
-        default="NORMALS")
+        # Force smooth for importing from MSFS
+        default="SMOOTH")
 
     # texture_folder_name = StringProperty(
     #     name="Texture name",

@@ -144,4 +144,4 @@ class BlenderMesh():
         if gltf.import_settings['import_shading'] == "NORMALS":
             custom_normals = [v.normal for v in bme.verts]
             mesh.normals_split_custom_set_from_vertices(custom_normals)
-            # mesh.use_auto_smooth = True
+            mesh.use_auto_smooth = True
