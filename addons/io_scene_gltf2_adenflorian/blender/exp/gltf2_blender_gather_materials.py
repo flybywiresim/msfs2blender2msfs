@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import bpy
+import json
 
 from io_scene_gltf2_adenflorian.blender.exp.gltf2_blender_gather_cache import cached
 from io_scene_gltf2_adenflorian.io.com import gltf2_io
@@ -129,26 +130,41 @@ def __gather_emissive_texture(blender_material, export_settings):
 def __gather_extensions(blender_material, export_settings):
     extensions = {}
 
-    # KHR_materials_unlit
+    if 'gltf_extensions' in blender_material:
+        extensions_dict = json.loads(blender_material['gltf_extensions'])
+        for ex in extensions_dict:
+            extensions[ex] = Extension(ex, extensions_dict[ex], False)
 
-    if gltf2_blender_get.get_socket_or_texture_slot(blender_material, "Background") is not None:
-        extensions["KHR_materials_unlit"] = Extension("KHR_materials_unlit", {}, False)
+    return extensions
 
-    # KHR_materials_clearcoat
+    # # KHR_materials_unlit
 
-    clearcoat_extension = __gather_clearcoat_extension(blender_material, export_settings)
-    if clearcoat_extension:
-        extensions["KHR_materials_clearcoat"] = clearcoat_extension
+    # if gltf2_blender_get.get_socket_or_texture_slot(blender_material, "Background") is not None:
+    #     extensions["KHR_materials_unlit"] = Extension("KHR_materials_unlit", {}, False)
 
-    # TODO KHR_materials_pbrSpecularGlossiness
+    # # KHR_materials_clearcoat
 
-    return extensions if extensions else None
+    # clearcoat_extension = __gather_clearcoat_extension(blender_material, export_settings)
+    # if clearcoat_extension:
+    #     extensions["KHR_materials_clearcoat"] = clearcoat_extension
+
+    # # TODO KHR_materials_pbrSpecularGlossiness
+
+    # return extensions if extensions else None
 
 
 def __gather_extras(blender_material, export_settings):
-    if export_settings['gltf_extras']:
-        return generate_extras(blender_material)
-    return None
+    extras = {}
+
+    if 'gltf_extras' in blender_material:
+        extras_dict = json.loads(blender_material['gltf_extras'])
+        for ex in extras_dict:
+            extras[ex] = extras_dict[ex]
+
+    return extras
+    # if export_settings['gltf_extras']:
+    #     return generate_extras(blender_material)
+    # return None
 
 
 def __gather_name(blender_material, export_settings):

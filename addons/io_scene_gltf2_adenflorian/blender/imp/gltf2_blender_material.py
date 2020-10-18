@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import bpy
+import json
 
 from ..com.gltf2_blender_extras import set_extras
 from .gltf2_blender_pbrMetallicRoughness import MaterialHelper, pbr_metallic_roughness
@@ -37,7 +38,11 @@ class BlenderMaterial():
         mat = bpy.data.materials.new(name)
         pymaterial.blender_material[vertex_color] = mat.name
 
-        set_extras(mat, pymaterial.extras)
+        # set_extras(mat, pymaterial.extras)
+        if pymaterial.extras is not None:
+            mat['gltf_extras'] = json.dumps(pymaterial.extras)
+        if pymaterial.extensions is not None:
+            mat['gltf_extensions'] = json.dumps(pymaterial.extensions)
         BlenderMaterial.set_double_sided(pymaterial, mat)
         BlenderMaterial.set_alpha_mode(pymaterial, mat)
         BlenderMaterial.set_viewport_color(pymaterial, mat, vertex_color)

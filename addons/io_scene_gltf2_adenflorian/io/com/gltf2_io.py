@@ -27,6 +27,7 @@ import sys
 import traceback
 
 from io_scene_gltf2_adenflorian.io.com import gltf2_io_debug
+from io_scene_gltf2_adenflorian.io.com import gltf2_io_extensions
 
 
 def from_int(x):
@@ -92,6 +93,8 @@ def to_float(x):
 
 
 def extension_to_dict(obj):
+    if hasattr(obj, 'extension'):
+        return obj.extension
     if hasattr(obj, 'to_list'):
         obj = obj.to_list()
     if hasattr(obj, 'to_dict'):
@@ -722,7 +725,7 @@ class MaterialNormalTextureInfoClass:
                                           self.extensions)
         result["extras"] = from_extra(self.extras)
         result["index"] = from_int(self.index)
-        # result["scale"] = from_union([to_float, from_none], self.scale)
+        result["scale"] = from_union([to_float, from_none], self.scale)
         # result["texCoord"] = from_union([from_int, from_none], self.tex_coord)
         return result
 
@@ -859,6 +862,8 @@ class Material:
                                                 self.occlusion_texture)
         result["emissiveTexture"] = from_union([lambda x: to_class(TextureInfo, x), from_none], self.emissive_texture)
         result["emissiveFactor"] = from_union([lambda x: from_list(to_float, x), from_none], self.emissive_factor)
+        if result["emissiveFactor"][0] == 0 and result["emissiveFactor"][1] == 0 and result["emissiveFactor"][2] == 0:
+            result["emissiveFactor"] = None
         result["pbrMetallicRoughness"] = from_union([lambda x: to_class(MaterialPBRMetallicRoughness, x), from_none],
                                                     self.pbr_metallic_roughness)
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
