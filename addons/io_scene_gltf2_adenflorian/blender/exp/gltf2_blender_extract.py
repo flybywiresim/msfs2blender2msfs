@@ -401,6 +401,7 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
             #     n = convert_swizzle_normal(blender_mesh.loops[loop_index].normal, armature, blender_object, export_settings)
             # else:
             n = convert_swizzle_normal(vertex.normal, armature, blender_object, export_settings)
+            n = Vector((-n[0], -n[1], -n[2]))
             # if use_tangents:
                 # t = convert_swizzle_tangent(blender_mesh.loops[loop_index].tangent, armature, blender_object, export_settings)
                 # b = convert_swizzle_location(blender_mesh.loops[loop_index].bitangent, armature, blender_object, export_settings)
