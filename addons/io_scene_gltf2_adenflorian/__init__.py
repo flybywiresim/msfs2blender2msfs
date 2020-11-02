@@ -195,7 +195,7 @@ class ExportGLTF2_Base:
     export_tangents: BoolProperty(
         name='Tangents',
         description='Export vertex tangents with meshes',
-        default=False
+        default=True
     )
 
     export_materials: BoolProperty(
