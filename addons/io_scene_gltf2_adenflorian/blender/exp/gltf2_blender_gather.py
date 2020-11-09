@@ -47,13 +47,36 @@ def __gather_scene(blender_scene, export_settings):
     scene = gltf2_io.Scene(
         extensions=None,
         extras=__gather_extras(blender_scene, export_settings),
-        name=blender_scene.name,
+        name=None,
         nodes=[]
     )
-
+    rootArmature = None
     for _blender_object in [obj for obj in blender_scene.objects if obj.proxy is None]:
-        if _blender_object.parent is None:
+        # set root armature - possibly could refactor
+        if _blender_object.type == "ARMATURE":
+            rootArmature = _blender_object
             blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
+            node = gltf2_blender_gather_nodes.gather_node(
+                blender_object,
+                blender_object.library.name if blender_object.library else None,
+                blender_scene, None, export_settings)
+            # this is terrible and probably will change
+            for child in node.children:
+                if child.name == "HIPS" and child is not None:
+                    scene.nodes.append(child)
+            continue
+        if _blender_object.parent == None or rootArmature == None:
+            continue
+        if _blender_object.parent.parent == None and _blender_object.type == "MESH":
+            blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
+            skinned = False
+            for modifier in blender_object.modifiers:
+                if modifier.type == "ARMATURE":
+                    if modifier.object == rootArmature:
+                        skinned = True
+                        break
+            if skinned == False and not blender_object.parent_bone == "":
+                continue
             node = gltf2_blender_gather_nodes.gather_node(
                 blender_object,
                 blender_object.library.name if blender_object.library else None,
