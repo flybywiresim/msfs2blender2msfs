@@ -69,13 +69,8 @@ def __gather_scene(blender_scene, export_settings):
             continue
         if _blender_object.parent.parent == None and _blender_object.type == "MESH": # add skinned meshes and meshes with a parent bone to the scene
             blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
-            skinned = False
-            for modifier in blender_object.modifiers:
-                if modifier.type == "ARMATURE":
-                    if modifier.object == rootArmature:
-                        skinned = True
-                        break
-            if skinned == False and not blender_object.parent_bone == "": # for some reason the value for no parent bone is an empty string instead of None
+            modifiers = {m.type: m for m in blender_object.modifiers}
+            if ("ARMATURE" not in modifiers or modifiers["ARMATURE"].object is None) and not blender_object.parent_bone == "": # for some reason the value for no parent bone is an empty string instead of None
                 continue
             node = gltf2_blender_gather_nodes.gather_node(
                 blender_object,
