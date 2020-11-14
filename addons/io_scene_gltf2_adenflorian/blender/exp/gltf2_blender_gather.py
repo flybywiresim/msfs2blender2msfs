@@ -53,7 +53,7 @@ def __gather_scene(blender_scene, export_settings):
     rootArmature = None
     for _blender_object in [obj for obj in blender_scene.objects if obj.proxy is None]:
         # set root armature - possibly could refactor
-        if _blender_object.type == "ARMATURE": # set the rootArmature as well as extract the HIPS bone from the skeleton
+        if _blender_object.type == "ARMATURE": # set the rootArmature as well as extract the root bone from the skeleton
             rootArmature = _blender_object
             blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
             node = gltf2_blender_gather_nodes.gather_node(
@@ -61,9 +61,7 @@ def __gather_scene(blender_scene, export_settings):
                 blender_object.library.name if blender_object.library else None,
                 blender_scene, None, export_settings)
             # this is terrible and probably will change
-            for child in node.children:
-                if child.name == "HIPS" and child is not None:
-                    scene.nodes.append(child)
+            scene.nodes.append(node.children[-1]) # this is sort of kind of terrible - it *should* work, since i think the last item in the children is the root bone, but if something breaks relating to the armature, check here 
             continue
         if _blender_object.parent == None or rootArmature == None: # skip if the object is not a child or if the rootArmature isn't set
             continue
