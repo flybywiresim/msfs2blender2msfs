@@ -16,6 +16,7 @@ import bpy
 
 from io_scene_gltf2_adenflorian.io.com import gltf2_io
 from io_scene_gltf2_adenflorian.io.com.gltf2_io_debug import print_console
+from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_joints
 from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_nodes
 from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_animations
 from io_scene_gltf2_adenflorian.blender.exp.gltf2_blender_gather_cache import cached
@@ -56,12 +57,7 @@ def __gather_scene(blender_scene, export_settings):
         if _blender_object.type == "ARMATURE": # set the rootArmature as well as extract the root bone from the skeleton
             rootArmature = _blender_object
             blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
-            node = gltf2_blender_gather_nodes.gather_node(
-                blender_object,
-                blender_object.library.name if blender_object.library else None,
-                blender_scene, None, export_settings)
-            # this is terrible and probably will change
-            scene.nodes.append(node.children[-1]) # this is sort of kind of terrible - it *should* work, since i think the last item in the children is the root bone, but if something breaks relating to the armature, check here 
+            scene.nodes.append(gltf2_blender_gather_joints.gather_joint(blender_object, blender_object.pose.bones[0], export_settings))
             continue
         if _blender_object.parent == None or rootArmature == None: # skip if the object is not a child or if the rootArmature isn't set
             continue
