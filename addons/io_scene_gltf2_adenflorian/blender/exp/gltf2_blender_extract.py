@@ -473,7 +473,7 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
                     joint_index = None
 
                     if armature:
-                        skin = gltf2_blender_gather_skins.gather_skin(armature, export_settings)
+                        skin = gltf2_blender_gather_skins.gather_skin(blender_object, export_settings)
                         for index, j in enumerate(skin.joints):
                             if j.name == vertex_group_name:
                                 joint_index = index

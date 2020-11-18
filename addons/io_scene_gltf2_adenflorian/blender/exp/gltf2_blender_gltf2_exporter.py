@@ -682,12 +682,13 @@ class GlTF2Exporter:
         if type(node) == gltf2_io.Skin:
             float_mat4_buffer_view = self.__asobo_buffer_views['bufferViewFloatMat4']
             if type(node.inverse_bind_matrices) != int:
-                binary_data = node.inverse_bind_matrices.buffer_view
-                node.inverse_bind_matrices.byte_offset = float_mat4_buffer_view.buffer.append_data(binary_data, True, True)
-                if node.inverse_bind_matrices.byte_offset == 0:
-                    node.inverse_bind_matrices.byte_offset = None
-                node.inverse_bind_matrices.buffer_view = self.__gltf.buffer_views.index(float_mat4_buffer_view)
-                node.inverse_bind_matrices = self.__to_reference(node.inverse_bind_matrices)
+                if type(node.inverse_bind_matrices.buffer_view) != int: # this seems to work, but may be causing some other issues elsewhere. (issue was some skins had 0 as their buffer view, instead of having data)
+                    binary_data = node.inverse_bind_matrices.buffer_view
+                    node.inverse_bind_matrices.byte_offset = float_mat4_buffer_view.buffer.append_data(binary_data, True, True)
+                    if node.inverse_bind_matrices.byte_offset == 0:
+                        node.inverse_bind_matrices.byte_offset = None
+                    node.inverse_bind_matrices.buffer_view = self.__gltf.buffer_views.index(float_mat4_buffer_view)
+                    node.inverse_bind_matrices = self.__to_reference(node.inverse_bind_matrices)
 
         if type(node) == gltf2_io.Animation:
             for sampler in node.samplers:

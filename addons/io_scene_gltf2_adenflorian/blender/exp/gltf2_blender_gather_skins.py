@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import mathutils
+import bpy
+
 from . import gltf2_blender_export_keys
 from io_scene_gltf2_adenflorian.blender.exp.gltf2_blender_gather_cache import cached
 from io_scene_gltf2_adenflorian.io.com import gltf2_io
@@ -33,16 +35,20 @@ def gather_skin(blender_object, export_settings):
     :param export_settings:
     :return: a glTF2 skin object
     """
-    if not __filter_skin(blender_object, export_settings):
+    modifiers = {m.type: m for m in blender_object.modifiers}
+
+    if not __filter_skin(modifiers, export_settings):
         return None
+
+    armature = modifiers["ARMATURE"].object
 
     skin = gltf2_io.Skin(
         extensions=__gather_extensions(blender_object, export_settings),
         extras=__gather_extras(blender_object, export_settings),
         inverse_bind_matrices=__gather_inverse_bind_matrices(blender_object, export_settings),
         joints=__gather_joints(blender_object, export_settings),
-        name=__gather_name(blender_object, export_settings),
-        skeleton=__gather_skeleton(blender_object, export_settings)
+        name=__gather_name(blender_object, armature, export_settings),
+        skeleton=__gather_skeleton(armature, export_settings)
     )
 
     export_user_extensions('gather_skin_hook', export_settings, skin, blender_object)
@@ -50,10 +56,10 @@ def gather_skin(blender_object, export_settings):
     return skin
 
 
-def __filter_skin(blender_object, export_settings):
+def __filter_skin(modifiers, export_settings):
     if not export_settings[gltf2_blender_export_keys.SKINS]:
         return False
-    if blender_object.type != 'ARMATURE' or len(blender_object.pose.bones) == 0:
+    if "ARMATURE" not in modifiers or modifiers["ARMATURE"].object is None:
         return False
 
     return True
@@ -67,6 +73,10 @@ def __gather_extras(blender_object, export_settings):
     return None
 
 def __gather_inverse_bind_matrices(blender_object, export_settings):
+    bones = [group.name for group in blender_object.vertex_groups] # get bones in skin
+    modifiers = {m.type: m for m in blender_object.modifiers}
+    armature = modifiers["ARMATURE"].object
+
     axis_basis_change = mathutils.Matrix.Identity(4)
     if export_settings[gltf2_blender_export_keys.YUP]:
         axis_basis_change = mathutils.Matrix(
@@ -75,24 +85,25 @@ def __gather_inverse_bind_matrices(blender_object, export_settings):
     if export_settings['gltf_def_bones'] is False:
         # build the hierarchy of nodes out of the bones
         root_bones = []
-        for blender_bone in blender_object.pose.bones:
+        for blender_bone in armature.pose.bones:
             if not blender_bone.parent:
                 root_bones.append(blender_bone)
     else:
-        _, children_, root_bones = get_bone_tree(None, blender_object)
+        _, children_, root_bones = get_bone_tree(None, armature)
 
     matrices = []
 
     # traverse the matrices in the same order as the joints and compute the inverse bind matrix
     def __collect_matrices(bone):
-        inverse_bind_matrix = gltf2_blender_math.multiply(
-            axis_basis_change,
-            gltf2_blender_math.multiply(
-                blender_object.matrix_world,
-                bone.bone.matrix_local
-            )
-        ).inverted()
-        matrices.append(inverse_bind_matrix)
+        if bone.name in bones:
+            inverse_bind_matrix = gltf2_blender_math.multiply(
+                axis_basis_change,
+                gltf2_blender_math.multiply(
+                    armature.matrix_world,
+                    bone.bone.matrix_local
+                )
+            ).inverted()
+            matrices.append(inverse_bind_matrix)
 
         if export_settings['gltf_def_bones'] is False:
             for child in bone.children:
@@ -100,7 +111,7 @@ def __gather_inverse_bind_matrices(blender_object, export_settings):
         else:
             if bone.name in children_.keys():
                 for child in children_[bone.name]:
-                    __collect_matrices(blender_object.pose.bones[child])
+                    __collect_matrices(armature.pose.bones[child])
 
     # start with the "root" bones and recurse into children, in the same ordering as the how joints are gathered
     for root_bone in root_bones:
@@ -127,15 +138,19 @@ def __gather_inverse_bind_matrices(blender_object, export_settings):
 
 
 def __gather_joints(blender_object, export_settings):
+    bones = [group.name for group in blender_object.vertex_groups] # get bones in skin
+    modifiers = {m.type: m for m in blender_object.modifiers}
+    armature = modifiers["ARMATURE"].object
+
     root_joints = []
     if export_settings['gltf_def_bones'] is False:
         # build the hierarchy of nodes out of the bones
-        for blender_bone in blender_object.pose.bones:
+        for blender_bone in armature.pose.bones:
             if not blender_bone.parent:
-                root_joints.append(gltf2_blender_gather_joints.gather_joint(blender_object, blender_bone, export_settings))
+                root_joints.append(gltf2_blender_gather_joints.gather_joint(armature, blender_bone, export_settings))
     else:
-        _, children_, root_joints = get_bone_tree(None, blender_object)
-        root_joints = [gltf2_blender_gather_joints.gather_joint(blender_object, i, export_settings) for i in root_joints]
+        _, children_, root_joints = get_bone_tree(None, armature)
+        root_joints = [gltf2_blender_gather_joints.gather_joint(armature, i, export_settings) for i in root_joints]
 
     # joints is a flat list containing all nodes belonging to the skin
     joints = []
@@ -144,11 +159,13 @@ def __gather_joints(blender_object, export_settings):
         joints.append(node)
         if export_settings['gltf_def_bones'] is False:
             for child in node.children:
-                __collect_joints(child)
+                if child.name in bones:
+                    __collect_joints(child)
         else:
             if node.name in children_.keys():
                 for child in children_[node.name]:
-                    __collect_joints(gltf2_blender_gather_joints.gather_joint(blender_object, blender_object.pose.bones[child], export_settings))
+                    if child.name in bones:
+                        __collect_joints(gltf2_blender_gather_joints.gather_joint(armature, armature.pose.bones[child], export_settings))
 
     for joint in root_joints:
         __collect_joints(joint)
@@ -156,17 +173,42 @@ def __gather_joints(blender_object, export_settings):
     return joints
 
 
-def __gather_name(blender_object, export_settings):
-    return blender_object.name
+def __gather_vertex_groups(armature):
+    skins = []
+    skinIndexes = []
+    for _blender_object in armature.children:
+        vertexGroups = [group.name for group in _blender_object.vertex_groups]
+        if (_blender_object.type == "MESH") and ("ARMATURE" in {m.type: m for m in _blender_object.modifiers}): # makes sure it's a skinned mesh and the vertex group isn't already in skins
+            if (not vertexGroups in skins):
+                skins.append(vertexGroups)
+                skinIndexes.append([_blender_object.name])
+            else:
+                index = skins.index(vertexGroups)
+                skinIndexes[index].append(_blender_object.name)
+    return skins, skinIndexes
 
 
-def __gather_skeleton(blender_object, export_settings):
-    # In the future support the result of https://github.com/KhronosGroup/glTF/pull/1195
-    return None  # gltf2_blender_gather_nodes.gather_node(blender_object, blender_scene, export_settings)
+def __gather_name(blender_object, armature, export_settings):
+    skins, skinIndexes = __gather_vertex_groups(armature)
+    vertexGroups = [group.name for group in blender_object.vertex_groups]
+    # get indexes
+    skinNumber = skins.index(vertexGroups)
+    subNumber = None
+    if len(skinIndexes[skinNumber]) > 1: # if more than one mesh shares the same skin
+        if not skinIndexes[skinNumber][0] == blender_object.name:
+            subNumber = skinIndexes[skinNumber].index(blender_object.name)
+    name = (f"skeleton #{str(skinNumber)}" if subNumber == None else f"skeleton #{str(skinNumber)}_{str(subNumber)}")
+    
+    return name
+
+
+@cached
+def __gather_skeleton(armature, export_settings): # returns the root bone node
+    blender_scene = bpy.data.scenes[0] # there should only ever be one scene for MSFS
+    return gltf2_blender_gather_joints.gather_joint(armature, armature.pose.bones[0], export_settings) # the root bone should be the last child in the list, but this hasn't been thoroughly tested
 
 @cached
 def get_bone_tree(blender_dummy, blender_object):
-
     bones = []
     children = {}
     root_bones = []
