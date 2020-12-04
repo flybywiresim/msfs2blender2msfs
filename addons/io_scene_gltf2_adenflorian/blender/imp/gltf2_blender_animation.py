@@ -31,6 +31,8 @@ class BlenderAnimation():
         # Things we need to stash when we're done.
         gltf.needs_stash = []
 
+        print(f"anim: {gltf.data.animations[anim_idx].name}")
+
         for vnode_id in gltf.vnodes:
             if isinstance(vnode_id, int):
                 BlenderNodeAnim.anim(gltf, anim_idx, vnode_id)

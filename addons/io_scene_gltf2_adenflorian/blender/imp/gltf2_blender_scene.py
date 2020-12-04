@@ -56,10 +56,6 @@ class BlenderScene():
             for anim_idx, _anim in enumerate(gltf.data.animations):
                 BlenderAnimation.anim(gltf, anim_idx)
 
-            # Restore first animation
-            anim_name = gltf.data.animations[0].track_name
-            BlenderAnimation.restore_animation(gltf, anim_name)
-
     @staticmethod
     def set_active_object(gltf):
         """Make the first root object from the default glTF scene active.

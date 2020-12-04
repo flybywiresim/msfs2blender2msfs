@@ -101,6 +101,7 @@ def __gather_inverse_bind_matrices(blender_object, export_settings):
                     blender_object.matrix_world @
                     bone.bone.matrix_local
                 )
+                @ axis_basis_change.inverted()
             ).inverted()
             matrices.append(inverse_bind_matrix)
 

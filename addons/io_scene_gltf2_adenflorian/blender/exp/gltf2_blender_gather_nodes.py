@@ -14,7 +14,7 @@
 
 import math
 import bpy
-from mathutils import Matrix, Quaternion
+from mathutils import Matrix, Quaternion, Vector
 
 from . import gltf2_blender_export_keys
 from io_scene_gltf2_adenflorian.blender.com import gltf2_blender_math
@@ -41,7 +41,9 @@ def gather_node(blender_object, library, blender_scene, dupli_object_parent, exp
         gather_node.__cache = {}
         gather_node.__export_settings = export_settings
 
+    #if blender_scene is None and (blender_object.name, library) in gather_node.__cache:
     if blender_scene is None and (blender_object.name, library) in gather_node.__cache:
+        print(f"Gathering cached node {blender_object.name}")
         return gather_node.__cache[(blender_object.name, library)]
 
     node = __gather_node(blender_object, library, blender_scene, dupli_object_parent, export_settings)
@@ -50,15 +52,20 @@ def gather_node(blender_object, library, blender_scene, dupli_object_parent, exp
 
 @cached
 def __gather_node(blender_object, library, blender_scene, dupli_object_parent, export_settings):
+    children = __gather_children(blender_object, blender_scene, export_settings)
+    
     # If blender_scene is None, we are coming from animation export
     # Check to know if object is exported is already done, so we don't check
     # again if object is instanced in scene : this check was already done when exporting object itself
     if not __filter_node(blender_object, blender_scene, export_settings):
-        return None
+        if children:
+            pass
+        else:
+            return None
 
     node = gltf2_io.Node(
         camera=__gather_camera(blender_object, export_settings),
-        children=__gather_children(blender_object, blender_scene, export_settings),
+        children=children,
         extensions=__gather_extensions(blender_object, export_settings),
         extras=__gather_extras(blender_object, export_settings),
         matrix=__gather_matrix(blender_object, export_settings),
@@ -70,6 +77,7 @@ def __gather_node(blender_object, library, blender_scene, dupli_object_parent, e
         translation=None,
         weights=__gather_weights(blender_object, export_settings)
     )
+    node.__blender_data = ('OBJECT', blender_object)
 
     # If node mesh is skined, transforms should be ignored at import, so no need to set them here
     # if node.skin is None:
@@ -180,33 +188,7 @@ def __gather_children(blender_object, blender_scene, export_settings):
             child_node = gather_node(child, None, None, None, export_settings)
             if child_node is None:
                 continue
-            blender_bone = blender_object.pose.bones[parent_joint.name]
-            # fix rotation
-            if export_settings[gltf2_blender_export_keys.YUP]:
-                rot = child_node.rotation
-                if rot is None:
-                    rot = [0, 0, 0, 1]
-
-                rot_quat = Quaternion(rot)
-                axis_basis_change = Matrix(
-                    ((1.0, 0.0, 0.0, 0.0), (0.0, 0.0, -1.0, 0.0), (0.0, 1.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)))
-                mat = child.matrix_parent_inverse @ child.matrix_basis
-                mat = mat @ axis_basis_change
-
-                _, rot_quat, _ = mat.decompose()
-                child_node.rotation = [rot_quat[1], rot_quat[2], rot_quat[3], rot_quat[0]]
-
-            # fix translation (in blender bone's tail is the origin for children)
-            trans, _, _ = child.matrix_local.decompose()
-            if trans is None:
-                trans = [0, 0, 0]
-            # bones go down their local y axis
-            if blender_bone.matrix.to_scale()[1] >= 1e-6:
-                bone_tail = [0, blender_bone.length / blender_bone.matrix.to_scale()[1], 0]
-            else:
-                bone_tail = [0,0,0] # If scale is 0, tail == head
-            child_node.translation = [trans[idx] + bone_tail[idx] for idx in range(3)]
-
+            
             parent_joint.children.append(child_node)
 
     return children
@@ -344,39 +326,25 @@ def __gather_name(blender_object, export_settings):
 
 
 def __gather_trans_rot_scale(blender_object, export_settings):
-    if blender_object.matrix_parent_inverse == Matrix.Identity(4):
-        trans = blender_object.location
-
-        if blender_object.rotation_mode in ['QUATERNION', 'AXIS_ANGLE']:
-            rot = blender_object.rotation_quaternion
+    if blender_object.parent:
+        parent = blender_object.parent
+        if blender_object.parent_type == 'BONE' and blender_object.parent_bone in parent.pose.bones:
+            p = parent.matrix_world @ parent.pose.bones[blender_object.parent_bone].matrix
         else:
-            rot = blender_object.rotation_euler.to_quaternion()
-
-        sca = blender_object.scale
+            p = parent.matrix_world
+        m = p.inverted() @ blender_object.matrix_world
     else:
-        # matrix_local = matrix_parent_inverse*location*rotation*scale
-        # Decomposing matrix_local gives less accuracy, but is needed if matrix_parent_inverse is not the identity.
+        m = blender_object.matrix_world
 
+    trans, rot, sca = m.decompose()
 
-        if blender_object.matrix_local[3][3] != 0.0:
-            trans, rot, sca = gltf2_blender_extract.decompose_transition(blender_object.matrix_local, export_settings)
-        else:
-            # Some really weird cases, scale is null (if parent is null when evaluation is done)
-            print_console('WARNING', 'Some nodes are 0 scaled during evaluation. Result can be wrong')
-            trans = blender_object.location
-            if blender_object.rotation_mode in ['QUATERNION', 'AXIS_ANGLE']:
-                rot = blender_object.rotation_quaternion
-            else:
-                rot = blender_object.rotation_euler.to_quaternion()
-            sca = blender_object.scale
+    # make sure the rotation is normalized
+    rot.normalize()
 
-    trans = gltf2_blender_extract.convert_swizzle_location(trans, None, None, export_settings)
-    rot = gltf2_blender_extract.convert_swizzle_rotation(rot, export_settings)
-    sca = gltf2_blender_extract.convert_swizzle_scale(sca, export_settings)
+    trans = __convert_swizzle_location(trans, export_settings)
+    rot = __convert_swizzle_rotation(rot, export_settings)
+    sca = __convert_swizzle_scale(sca, export_settings)
 
-    if blender_object.instance_type == 'COLLECTION' and blender_object.instance_collection:
-        trans -= gltf2_blender_extract.convert_swizzle_location(
-            blender_object.instance_collection.instance_offset, None, None, export_settings)
     translation, rotation, scale = (None, None, None)
     trans[0], trans[1], trans[2] = gltf2_blender_math.round_if_near(trans[0], 0.0), gltf2_blender_math.round_if_near(trans[1], 0.0), \
                                    gltf2_blender_math.round_if_near(trans[2], 0.0)
@@ -437,3 +405,29 @@ def __get_correction_node(blender_object, export_settings):
         translation=None,
         weights=None
     )
+
+def __convert_swizzle_location(loc, export_settings):
+    """Convert a location from Blender coordinate system to glTF coordinate system."""
+    if export_settings[gltf2_blender_export_keys.YUP]:
+        return Vector((loc[0], loc[2], -loc[1]))
+    else:
+        return Vector((loc[0], loc[1], loc[2]))
+
+
+def __convert_swizzle_rotation(rot, export_settings):
+    """
+    Convert a quaternion rotation from Blender coordinate system to glTF coordinate system.
+    'w' is still at first position.
+    """
+    if export_settings[gltf2_blender_export_keys.YUP]:
+        return Quaternion((rot[0], rot[1], rot[3], -rot[2]))
+    else:
+        return Quaternion((rot[0], rot[1], rot[2], rot[3]))
+
+
+def __convert_swizzle_scale(scale, export_settings):
+    """Convert a scale from Blender coordinate system to glTF coordinate system."""
+    if export_settings[gltf2_blender_export_keys.YUP]:
+        return Vector((scale[0], scale[2], scale[1]))
+    else:
+        return Vector((scale[0], scale[1], scale[2]))

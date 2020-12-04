@@ -31,35 +31,7 @@ def gather_joint(blender_object, blender_bone, export_settings):
     :param export_settings: the settings for this export
     :return: a glTF2 node (acting as a joint)
     """
-    axis_basis_change = mathutils.Matrix.Identity(4)
-    if export_settings[gltf2_blender_export_keys.YUP]:
-        axis_basis_change = mathutils.Matrix(
-            ((1.0, 0.0, 0.0, 0.0), (0.0, 0.0, 1.0, 0.0), (0.0, -1.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)))
-
-    # extract bone transform
-    if blender_bone.parent is None:
-        correction_matrix_local = axis_basis_change @ blender_bone.bone.matrix_local
-    else:
-        correction_matrix_local = (
-            blender_bone.parent.bone.matrix_local.inverted() @
-            blender_bone.bone.matrix_local
-        )
-
-    if (blender_bone.bone.use_inherit_rotation == False or blender_bone.bone.inherit_scale != "FULL") and blender_bone.parent != None:
-        rest_mat = (blender_bone.parent.bone.matrix_local.inverted_safe() @ blender_bone.bone.matrix_local)
-        matrix_basis = (rest_mat.inverted_safe() @ blender_bone.parent.matrix.inverted_safe() @ blender_bone.matrix)
-    else:
-        matrix_basis = blender_bone.matrix
-        matrix_basis = blender_object.convert_space(pose_bone=blender_bone, matrix=matrix_basis, from_space='POSE', to_space='LOCAL')
-
-    trans, rot, sca = (correction_matrix_local @ matrix_basis).decompose()
-    translation, rotation, scale = (None, None, None)
-    if trans[0] != 0.0 or trans[1] != 0.0 or trans[2] != 0.0:
-        translation = [trans[0], trans[1], trans[2]]
-    if rot[0] != 1.0 or rot[1] != 0.0 or rot[2] != 0.0 or rot[3] != 0.0:
-        rotation = [rot[1], rot[2], rot[3], rot[0]]
-    if sca[0] != 1.0 or sca[1] != 1.0 or sca[2] != 1.0:
-        scale = [sca[0], sca[1], sca[2]]
+    translation, rotation, scale = __gather_trans_rot_scale(blender_bone, export_settings)
 
     # traverse into children
     children = []
@@ -74,7 +46,7 @@ def gather_joint(blender_object, blender_bone, export_settings):
                 children.append(gather_joint(blender_object, blender_bone.id_data.pose.bones[bone], export_settings))
 
     # finally add to the joints array containing all the joints in the hierarchy
-    return gltf2_io.Node(
+    node = gltf2_io.Node(
         camera=None,
         children=children,
         extensions=None,
@@ -88,6 +60,33 @@ def gather_joint(blender_object, blender_bone, export_settings):
         translation=translation,
         weights=None
     )
+    node.__blender_data = ('BONE', blender_object, blender_bone.name)
+
+    export_user_extensions('gather_joint_hook', export_settings, node, blender_bone)
+
+    return node
+
+def __gather_trans_rot_scale(blender_bone, export_settings):
+    if blender_bone.parent is None:
+        m = blender_bone.matrix
+    else:
+        m = blender_bone.parent.matrix.inverted() @ blender_bone.matrix
+    t, r, s = m.decompose()
+
+    from . import gltf2_blender_gather_nodes
+    trans = gltf2_blender_gather_nodes.__convert_swizzle_location(t, export_settings)
+    rot = gltf2_blender_gather_nodes.__convert_swizzle_rotation(r, export_settings)
+    sca = gltf2_blender_gather_nodes.__convert_swizzle_scale(s, export_settings)
+
+    translation, rotation, scale = (None, None, None)
+    if trans[0] != 0.0 or trans[1] != 0.0 or trans[2] != 0.0:
+        translation = [trans[0], trans[1], trans[2]]
+    if rot[0] != 1.0 or rot[1] != 0.0 or rot[2] != 0.0 or rot[3] != 0.0:
+        rotation = [rot[1], rot[2], rot[3], rot[0]]
+    if sca[0] != 1.0 or sca[1] != 1.0 or sca[2] != 1.0:
+        scale = [sca[0], sca[1], sca[2]]
+
+    return translation, rotation, scale
 
 def __gather_extras(blender_bone, export_settings):
     if export_settings['gltf_extras']:
