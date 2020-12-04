@@ -13,15 +13,15 @@
 # limitations under the License.
 
 bl_info = {
-    'name': 'glTF 2.0 format A32NX',
-    'author': 'David "AdenFlorian" Valachovic, Julien Duroure, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
+    'name': 'glTF 2.0 format for MSFS 2020',
+    'author': 'pepperoni505, David "AdenFlorian" Valachovic, Julien Duroure, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
     "version": (1, 2, 75),
     'blender': (2, 83, 0),
     'location': 'File > Import-Export',
-    'description': 'Import-Export as glTF 2.0 A32NX',
+    'description': 'Import-Export as glTF 2.0 for MSFS 2020',
     'warning': '',
     'doc_url': "{BLENDER_MANUAL_URL}/addons/import_export/scene_gltf2.html",
-    'tracker_url': "https://github.com/KhronosGroup/glTF-Blender-IO/issues/",
+    'tracker_url': "https://github.com/flybywiresim/glTF-Blender-a32nx/issues/",
     'support': 'COMMUNITY',
     'category': 'Import-Export',
 }
