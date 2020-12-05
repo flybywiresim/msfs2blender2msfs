@@ -818,7 +818,7 @@ class GLTF_PT_export_user_extensions(bpy.types.Panel):
 
 
 class ExportGLTF2(bpy.types.Operator, ExportGLTF2_Base, ExportHelper):
-    """Export scene as glTF 2.0 format for MSFS 2020"""
+    """Export scene as glTF 2.0 for MSFS 2020"""
     bl_idname = 'export_scene.gltfmsfs'
     bl_label = 'Export glTF 2.0 for MSFS 2020'
 
@@ -828,11 +828,11 @@ class ExportGLTF2(bpy.types.Operator, ExportGLTF2_Base, ExportHelper):
 
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportGLTF2.bl_idname, text='glTF 2.0 (.glb/.gltf) for MSFS 2020')
+    self.layout.operator(ExportGLTF2.bl_idname, text='glTF 2.0 for MSFS 2020 (.glb/.gltf)')
 
 
 class ImportGLTF2(Operator, ImportHelper):
-    """Load a glTF 2.0 format for MSFS 2020"""
+    """Load glTF 2.0 file for MSFS 2020"""
     bl_idname = 'import_scene.gltfmsfs'
     bl_label = 'Import glTF 2.0 for MSFS 2020'
 
@@ -1031,7 +1031,7 @@ class MSFSImporterExporter(AddonPreferences):
                 icon='ERROR')
 
 def menu_func_import(self, context):
-    self.layout.operator(ImportGLTF2.bl_idname, text='glTF 2.0 (.glb/.gltf) for MSFS 2020')
+    self.layout.operator(ImportGLTF2.bl_idname, text='glTF 2.0 for MSFS 2020 (.glb/.gltf)')
 
 
 classes = (
