@@ -21,7 +21,7 @@ bl_info = {
     'description': 'Import-Export as glTF 2.0 for MSFS 2020',
     'warning': '',
     'doc_url': "{BLENDER_MANUAL_URL}/addons/import_export/scene_gltf2.html",
-    'tracker_url': "https://github.com/flybywiresim/glTF-Blender-a32nx/issues/",
+    'tracker_url': "https://github.com/flybywiresim/glTF-Blender-MSFS/issues/",
     'support': 'COMMUNITY',
     'category': 'Import-Export',
 }
