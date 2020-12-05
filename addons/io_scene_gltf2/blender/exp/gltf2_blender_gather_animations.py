@@ -15,11 +15,11 @@
 import bpy
 import typing
 
-from io_scene_gltf2_adenflorian.io.com import gltf2_io
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_animation_channels
-from io_scene_gltf2_adenflorian.io.com.gltf2_io_debug import print_console
+from io_scene_gltf2.io.com import gltf2_io
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_animation_channels
+from io_scene_gltf2.io.com.gltf2_io_debug import print_console
 from ..com.gltf2_blender_extras import generate_extras
-from io_scene_gltf2_adenflorian.io.exp.gltf2_io_user_extensions import export_user_extensions
+from io_scene_gltf2.io.exp.gltf2_io_user_extensions import export_user_extensions
 
 
 def gather_animations(blender_object: bpy.types.Object,

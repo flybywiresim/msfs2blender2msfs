@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-from io_scene_gltf2_adenflorian.blender.exp.gltf2_blender_gather_cache import skdriverdiscovercache, skdrivervalues
-from io_scene_gltf2_adenflorian.blender.com.gltf2_blender_data_path import get_target_object_path
+from io_scene_gltf2.blender.exp.gltf2_blender_gather_cache import skdriverdiscovercache, skdrivervalues
+from io_scene_gltf2.blender.com.gltf2_blender_data_path import get_target_object_path
 
 
 @skdriverdiscovercache

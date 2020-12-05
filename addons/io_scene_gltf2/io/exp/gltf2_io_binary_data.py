@@ -15,7 +15,7 @@
 import typing
 import array
 import struct
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_constants
+from io_scene_gltf2.io.com import gltf2_io_constants
 
 STRUCT_HALF = struct.Struct('e')
 

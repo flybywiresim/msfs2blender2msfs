@@ -192,7 +192,7 @@ class BlenderPrimitive():
         if 'NORMAL' in attributes:
             normals = BinaryData.get_data_from_accessor(gltf, attributes['NORMAL'], cache=True)
             for bidx, pidx in vert_idxs:
-                # A32NX
+                # MSFS
                 # msfs gltf uses VEC4 for the vertex normals, but blender uses VEC3
                 # TODO Figure out what to do with the 4th component
                 n = normals[pidx][0:3]
@@ -341,7 +341,7 @@ class BlenderPrimitive():
             #  / \   / \
             # 0---1 4---5
             fs = [
-                # A32NX Flip order to flip face normals
+                # MSFS Flip order to flip face normals
                 (indices[i + 2], indices[i + 1], indices[i])
                 for i in range(0, len(indices), 3)
             ]

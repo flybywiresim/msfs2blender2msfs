@@ -18,7 +18,7 @@ from ctypes import c_void_p, c_uint32, c_uint64, c_bool, c_char_p, cdll
 from pathlib import Path
 import struct
 
-from io_scene_gltf2_adenflorian.io.exp.gltf2_io_binary_data import BinaryData
+from io_scene_gltf2.io.exp.gltf2_io_binary_data import BinaryData
 from ...io.com.gltf2_io_debug import print_console
 
 

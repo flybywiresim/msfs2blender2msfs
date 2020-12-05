@@ -19,14 +19,14 @@ import struct
 from typing import List
 
 from ... import get_version_string
-from io_scene_gltf2_adenflorian.io.com import gltf2_io
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_extensions
-# from io_scene_gltf2_adenflorian.io.com import gltf2_io_constants
-from io_scene_gltf2_adenflorian.io.exp import gltf2_io_binary_data
-from io_scene_gltf2_adenflorian.io.exp import gltf2_io_buffer
-from io_scene_gltf2_adenflorian.io.exp import gltf2_io_asobo_buffer
-from io_scene_gltf2_adenflorian.io.exp import gltf2_io_image_data
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_export_keys
+from io_scene_gltf2.io.com import gltf2_io
+from io_scene_gltf2.io.com import gltf2_io_extensions
+# from io_scene_gltf2.io.com import gltf2_io_constants
+from io_scene_gltf2.io.exp import gltf2_io_binary_data
+from io_scene_gltf2.io.exp import gltf2_io_buffer
+from io_scene_gltf2.io.exp import gltf2_io_asobo_buffer
+from io_scene_gltf2.io.exp import gltf2_io_image_data
+from io_scene_gltf2.blender.exp import gltf2_blender_export_keys
 
 
 STRUCT_POSITION = struct.Struct('fff')

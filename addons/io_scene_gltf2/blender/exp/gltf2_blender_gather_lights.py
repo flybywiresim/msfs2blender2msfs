@@ -16,14 +16,14 @@ import bpy
 import math
 from typing import Optional, List, Dict, Any
 
-from io_scene_gltf2_adenflorian.blender.exp.gltf2_blender_gather_cache import cached
+from io_scene_gltf2.blender.exp.gltf2_blender_gather_cache import cached
 from ..com.gltf2_blender_extras import generate_extras
 
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_lights_punctual
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_debug
+from io_scene_gltf2.io.com import gltf2_io_lights_punctual
+from io_scene_gltf2.io.com import gltf2_io_debug
 
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_light_spots
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_search_node_tree
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_light_spots
+from io_scene_gltf2.blender.exp import gltf2_blender_search_node_tree
 
 
 @cached

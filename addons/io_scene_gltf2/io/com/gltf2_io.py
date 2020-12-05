@@ -26,8 +26,8 @@
 import sys
 import traceback
 
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_debug
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_extensions
+from io_scene_gltf2.io.com import gltf2_io_debug
+from io_scene_gltf2.io.com import gltf2_io_extensions
 
 
 def from_int(x):
@@ -1109,7 +1109,7 @@ class Skin:
         result["name"] = from_union([from_str, from_none], self.name)
         return result
 
-# A32NX
+# MSFS
 class MSFT_texture_dds:
     """A texture and its sampler."""
 

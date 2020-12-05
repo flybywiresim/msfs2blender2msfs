@@ -46,7 +46,7 @@ class BlenderMesh():
                 pymaterial = gltf.data.materials[prim.material]
 
                 vertex_color = None
-                # A32NX Disabling vertex color import
+                # MSFS Disabling vertex color import
                 # It just makes things look weird, I think it's only in the gltf to match the standard
                 # if 'COLOR_0' in prim.attributes:
                 #     vertex_color = 'COLOR_0'

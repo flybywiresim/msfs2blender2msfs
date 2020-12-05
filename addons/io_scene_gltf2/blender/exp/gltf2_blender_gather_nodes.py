@@ -17,19 +17,19 @@ import bpy
 from mathutils import Matrix, Quaternion, Vector
 
 from . import gltf2_blender_export_keys
-from io_scene_gltf2_adenflorian.blender.com import gltf2_blender_math
-from io_scene_gltf2_adenflorian.blender.exp.gltf2_blender_gather_cache import cached
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_skins
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_cameras
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_mesh
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_joints
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_extract
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_lights
+from io_scene_gltf2.blender.com import gltf2_blender_math
+from io_scene_gltf2.blender.exp.gltf2_blender_gather_cache import cached
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_skins
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_cameras
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_mesh
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_joints
+from io_scene_gltf2.blender.exp import gltf2_blender_extract
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_lights
 from ..com.gltf2_blender_extras import generate_extras
-from io_scene_gltf2_adenflorian.io.com import gltf2_io
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_extensions
-from io_scene_gltf2_adenflorian.io.exp.gltf2_io_user_extensions import export_user_extensions
-from io_scene_gltf2_adenflorian.io.com.gltf2_io_debug import print_console
+from io_scene_gltf2.io.com import gltf2_io
+from io_scene_gltf2.io.com import gltf2_io_extensions
+from io_scene_gltf2.io.exp.gltf2_io_user_extensions import export_user_extensions
+from io_scene_gltf2.io.com.gltf2_io_debug import print_console
 
 
 def gather_node(blender_object, library, blender_scene, dupli_object_parent, export_settings):

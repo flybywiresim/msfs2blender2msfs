@@ -74,7 +74,7 @@ class ExportGLTF2_Base:
     # TODO: refactor to avoid boilerplate
 
     def __init__(self):
-        from io_scene_gltf2_adenflorian.io.exp import gltf2_io_draco_compression_extension
+        from io_scene_gltf2.io.exp import gltf2_io_draco_compression_extension
         self.is_draco_available = gltf2_io_draco_compression_extension.dll_exists()
 
     bl_options = {'PRESET'}
@@ -635,7 +635,7 @@ class GLTF_PT_export_geometry_compression(bpy.types.Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def __init__(self):
-        from io_scene_gltf2_adenflorian.io.exp import gltf2_io_draco_compression_extension
+        from io_scene_gltf2.io.exp import gltf2_io_draco_compression_extension
         self.is_draco_available = gltf2_io_draco_compression_extension.dll_exists(quiet=True)
 
     @classmethod
@@ -818,9 +818,9 @@ class GLTF_PT_export_user_extensions(bpy.types.Panel):
 
 
 class ExportGLTF2(bpy.types.Operator, ExportGLTF2_Base, ExportHelper):
-    """Export scene as glTF 2.0 A32NX file"""
-    bl_idname = 'export_scene.gltfa32nx'
-    bl_label = 'Export glTF 2.0 A32NX'
+    """Export scene as glTF 2.0 format for MSFS 2020"""
+    bl_idname = 'export_scene.gltfmsfs'
+    bl_label = 'Export glTF 2.0 for MSFS 2020'
 
     filename_ext = ''
 
@@ -828,13 +828,13 @@ class ExportGLTF2(bpy.types.Operator, ExportGLTF2_Base, ExportHelper):
 
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportGLTF2.bl_idname, text='glTF 2.0 (.glb/.gltf) A32NX')
+    self.layout.operator(ExportGLTF2.bl_idname, text='glTF 2.0 (.glb/.gltf) for MSFS 2020')
 
 
 class ImportGLTF2(Operator, ImportHelper):
-    """Load a glTF 2.0 A32NX file"""
-    bl_idname = 'import_scene.gltfa32nx'
-    bl_label = 'Import glTF 2.0 A32NX'
+    """Load a glTF 2.0 format for MSFS 2020"""
+    bl_idname = 'import_scene.gltfmsfs'
+    bl_label = 'Import glTF 2.0 for MSFS 2020'
 
     filter_glob: StringProperty(default="*.glb;*.gltf", options={'HIDDEN'})
 
@@ -949,7 +949,7 @@ class ImportGLTF2(Operator, ImportHelper):
         start_time = time.time()
         BlenderGlTF.create(self.gltf_importer, self.report, addon_prefs, "TEXTURE", self.filepath)
         elapsed_s = "{:.2f}s".format(time.time() - start_time)
-        print("A32NX glTF import finished in " + elapsed_s)
+        print("MSFS glTF import finished in " + elapsed_s)
         self.gltf_importer.log.removeHandler(self.gltf_importer.log_handler)
 
         return {'FINISHED'}
@@ -971,7 +971,7 @@ def path_good(path: pathlib.Path) -> bool:
     return path.name == 'texconv.exe' and path.exists()
 
 # Original is from https://github.com/bestdani/msfs2blend
-class A32NXImporterExporter(AddonPreferences):
+class MSFSImporterExporter(AddonPreferences):
     bl_idname = __name__
 
     texconv_file: StringProperty(
@@ -1031,7 +1031,7 @@ class A32NXImporterExporter(AddonPreferences):
                 icon='ERROR')
 
 def menu_func_import(self, context):
-    self.layout.operator(ImportGLTF2.bl_idname, text='glTF 2.0 (.glb/.gltf) A32NX')
+    self.layout.operator(ImportGLTF2.bl_idname, text='glTF 2.0 (.glb/.gltf) for MSFS 2020')
 
 
 classes = (
@@ -1047,7 +1047,7 @@ classes = (
     GLTF_PT_export_animation_skinning,
     GLTF_PT_export_user_extensions,
     ImportGLTF2,
-    A32NXImporterExporter
+    MSFSImporterExporter
 )
 
 

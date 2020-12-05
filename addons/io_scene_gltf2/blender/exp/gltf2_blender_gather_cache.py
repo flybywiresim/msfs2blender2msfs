@@ -14,7 +14,7 @@
 
 import functools
 import bpy
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_get
+from io_scene_gltf2.blender.exp import gltf2_blender_get
 
 
 def cached(func):

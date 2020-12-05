@@ -14,14 +14,14 @@
 
 import typing
 import bpy
-from io_scene_gltf2_adenflorian.blender.exp.gltf2_blender_gather_cache import cached
+from io_scene_gltf2.blender.exp.gltf2_blender_gather_cache import cached
 
-from io_scene_gltf2_adenflorian.io.com import gltf2_io
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_sampler
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_search_node_tree
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_image
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_debug
-from io_scene_gltf2_adenflorian.io.exp.gltf2_io_user_extensions import export_user_extensions
+from io_scene_gltf2.io.com import gltf2_io
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_sampler
+from io_scene_gltf2.blender.exp import gltf2_blender_search_node_tree
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_image
+from io_scene_gltf2.io.com import gltf2_io_debug
+from io_scene_gltf2.io.exp.gltf2_io_user_extensions import export_user_extensions
 
 
 @cached

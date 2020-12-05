@@ -17,7 +17,7 @@ from mathutils import Vector, Matrix
 
 from ..com.gltf2_blender_material_helpers import get_gltf_node_name
 from ...blender.com.gltf2_blender_conversion import texture_transform_blender_to_gltf
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_debug
+from io_scene_gltf2.io.com import gltf2_io_debug
 
 
 def get_animation_target(action_group: bpy.types.ActionGroup):

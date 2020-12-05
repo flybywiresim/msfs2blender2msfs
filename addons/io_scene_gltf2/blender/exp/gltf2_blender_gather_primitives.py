@@ -17,17 +17,17 @@ from typing import List, Optional, Tuple
 
 from .gltf2_blender_export_keys import NORMALS, MORPH_NORMAL, TANGENTS, MORPH_TANGENT, MORPH
 
-from io_scene_gltf2_adenflorian.blender.exp.gltf2_blender_gather_cache import cached
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_extract
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_accessors
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_primitive_attributes
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_utils
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_materials
+from io_scene_gltf2.blender.exp.gltf2_blender_gather_cache import cached
+from io_scene_gltf2.blender.exp import gltf2_blender_extract
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_accessors
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_primitive_attributes
+from io_scene_gltf2.blender.exp import gltf2_blender_utils
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_materials
 
-from io_scene_gltf2_adenflorian.io.com import gltf2_io
-from io_scene_gltf2_adenflorian.io.exp import gltf2_io_binary_data
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_constants
-from io_scene_gltf2_adenflorian.io.com.gltf2_io_debug import print_console
+from io_scene_gltf2.io.com import gltf2_io
+from io_scene_gltf2.io.exp import gltf2_io_binary_data
+from io_scene_gltf2.io.com import gltf2_io_constants
+from io_scene_gltf2.io.com.gltf2_io_debug import print_console
 
 
 @cached

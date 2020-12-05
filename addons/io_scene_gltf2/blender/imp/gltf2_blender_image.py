@@ -29,7 +29,7 @@ class BlenderImage():
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
-    # A32NX
+    # MSFS
     # Original is from https://github.com/bestdani/msfs2blend
     @staticmethod
     def convert_normal_image(normal_image):
@@ -82,7 +82,7 @@ class BlenderImage():
 
             num_images = len(bpy.data.images)
             blender_image = bpy.data.images.load(os.path.abspath(path), check_existing=img_from_file)
-            # A32NX
+            # MSFS
             print('blender image create bpy.data.images.load(path) ' + str(path))
             if label == 'NORMALMAP':
                 BlenderImage.convert_normal_image(blender_image)

@@ -23,7 +23,7 @@ from operator import attrgetter
 from . import gltf2_blender_export_keys
 from ...io.com.gltf2_io_debug import print_console
 from ...io.com.gltf2_io_color_management import color_srgb_to_scene_linear
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_skins
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_skins
 
 #
 # Globals

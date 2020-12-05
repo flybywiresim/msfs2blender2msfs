@@ -16,8 +16,8 @@ import bpy
 
 from .gltf2_blender_image import BlenderImage
 from ..com.gltf2_blender_conversion import texture_transform_gltf_to_blender
-from io_scene_gltf2_adenflorian.io.com.gltf2_io import Sampler
-from io_scene_gltf2_adenflorian.io.com.gltf2_io_constants import TextureFilter, TextureWrap
+from io_scene_gltf2.io.com.gltf2_io import Sampler
+from io_scene_gltf2.io.com.gltf2_io_constants import TextureFilter, TextureWrap
 
 def texture(
     mh,
@@ -50,7 +50,7 @@ def texture(
         if blender_image_name:
             tex_img.image = bpy.data.images[blender_image_name]
     else:
-        # A32NX
+        # MSFS
         if pytexture.MSFT_texture_dds is not None:
             BlenderImage.create(mh.gltf, pytexture.MSFT_texture_dds.source, label)
             pyimg = mh.gltf.data.images[pytexture.MSFT_texture_dds.source]

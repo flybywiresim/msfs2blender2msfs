@@ -19,11 +19,11 @@ import typing
 import bpy
 from mathutils import Matrix, Vector, Quaternion
 
-from io_scene_gltf2_adenflorian.io.com import gltf2_io
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_constants
-from io_scene_gltf2_adenflorian.io.exp import gltf2_io_binary_data
-from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_export_keys
-from io_scene_gltf2_adenflorian.io.com.gltf2_io_debug import print_console
+from io_scene_gltf2.io.com import gltf2_io
+from io_scene_gltf2.io.com import gltf2_io_constants
+from io_scene_gltf2.io.exp import gltf2_io_binary_data
+from io_scene_gltf2.blender.exp import gltf2_blender_export_keys
+from io_scene_gltf2.io.com.gltf2_io_debug import print_console
 from ..com.gltf2_blender_extras import generate_extras
 
 
@@ -157,7 +157,7 @@ def __gather_animation(pre_anim, nodes, export_settings):
 
 
 def __get_gltf_trs_from_object(ob, export_settings):
-    from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_nodes
+    from io_scene_gltf2.blender.exp import gltf2_blender_gather_nodes
     t, r, s = gltf2_blender_gather_nodes.__gather_trans_rot_scale(ob, export_settings)
     if t is None: t = [0, 0, 0]
     if r is None: r = [0, 0, 0, 1]
@@ -166,7 +166,7 @@ def __get_gltf_trs_from_object(ob, export_settings):
 
 
 def __get_gltf_trs_from_bone(pbone, arma_ob, export_settings):
-    from io_scene_gltf2_adenflorian.blender.exp import gltf2_blender_gather_joints
+    from io_scene_gltf2.blender.exp import gltf2_blender_gather_joints
     t, r, s = gltf2_blender_gather_joints.__gather_trans_rot_scale(pbone, export_settings)
     if t is None: t = [0, 0, 0]
     if r is None: r = [0, 0, 0, 1]

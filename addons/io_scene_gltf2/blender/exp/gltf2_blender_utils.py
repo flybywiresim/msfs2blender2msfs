@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import math
-from io_scene_gltf2_adenflorian.io.com import gltf2_io_constants
+from io_scene_gltf2.io.com import gltf2_io_constants
 
 
 # TODO: we could apply functional programming to these problems (currently we only have a single use case)
