@@ -210,10 +210,11 @@ def __gather_skins(blender_primitive, export_settings, asobo_vertex_type):
                         factor = 1.0 / total
                         internal_weight[idx:idx + 4] = [w * factor for w in weight_slice]
             weight_data_type = gltf2_io_constants.DataType.Scalar if asobo_vertex_type == 'BLEND1' else gltf2_io_constants.DataType.Vec4
+            component_type = gltf2_io_constants.ComponentType.Float if asobo_vertex_type == 'BLEND1' else gltf2_io_constants.ComponentType.UnsignedShort
             weight = gltf2_io.Accessor(
                 buffer_view=internal_weight if asobo_vertex_type == 'BLEND1' else [round(x * 65535.0) for x in internal_weight],
                 byte_offset=None,
-                component_type=gltf2_io_constants.ComponentType.Float if asobo_vertex_type == 'BLEND1' else gltf2_io_constants.ComponentType.UnsignedShort,
+                component_type=component_type,
                 count=len(internal_weight) // gltf2_io_constants.DataType.num_elements(
                     weight_data_type),
                 extensions=None,
@@ -221,7 +222,7 @@ def __gather_skins(blender_primitive, export_settings, asobo_vertex_type):
                 max=None,
                 min=None,
                 name=None,
-                normalized=None,
+                normalized=True if component_type == 5121 or component_type == 5123 else None, # only normalized for unsigned bytes and unsigned shorts
                 sparse=None,
                 type=weight_data_type
             )
