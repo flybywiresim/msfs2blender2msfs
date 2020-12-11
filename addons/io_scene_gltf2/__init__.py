@@ -900,11 +900,12 @@ class ImportGLTF2(Operator, ImportHelper):
     def draw(self, context):
         layout = self.layout
 
-        layout.prop(self, 'import_pack_images')
-        layout.prop(self, 'import_shading')
+        # add more settings later
+        # layout.prop(self, 'import_pack_images')
+        # layout.prop(self, 'import_shading')
         # layout.prop(self, 'texture_folder_name')
-        layout.prop(self, 'guess_original_bind_pose')
-        layout.prop(self, 'bone_heuristic')
+        # layout.prop(self, 'guess_original_bind_pose')
+        # layout.prop(self, 'bone_heuristic')
 
     def execute(self, context):
         return self.import_gltf2(context)
