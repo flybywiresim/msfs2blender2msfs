@@ -108,7 +108,7 @@ def __gather_animation(pre_anim, nodes, export_settings):
             elif node.__blender_data[0] == 'BONE':
                 arma_ob = node.__blender_data[1]
                 pbone = arma_ob.pose.bones[node.__blender_data[2]]
-                t, r, s = __get_gltf_trs_from_bone(pbone, node.__blender_data[1], export_settings)
+                t, r, s = __get_gltf_trs_from_bone(pbone, export_settings)
             else:
                 assert False
             data['translation'][i].append(t)
@@ -165,9 +165,26 @@ def __get_gltf_trs_from_object(ob, export_settings):
     return t, r, s
 
 
-def __get_gltf_trs_from_bone(pbone, arma_ob, export_settings):
-    from io_scene_gltf2.blender.exp import gltf2_blender_gather_joints
-    t, r, s = gltf2_blender_gather_joints.__gather_trans_rot_scale(pbone, export_settings)
+def __get_gltf_trs_from_bone(pbone, export_settings):
+    if pbone.parent is None:
+        m = pbone.matrix
+    else:
+        m = pbone.parent.matrix.inverted() @ pbone.matrix
+    t, r, s = m.decompose()
+
+    from . import gltf2_blender_gather_nodes
+    trans = gltf2_blender_gather_nodes.__convert_swizzle_location(t, export_settings)
+    rot = gltf2_blender_gather_nodes.__convert_swizzle_rotation(r, export_settings)
+    sca = gltf2_blender_gather_nodes.__convert_swizzle_scale(s, export_settings)
+
+    t, r, s = (None, None, None)
+    if trans[0] != 0.0 or trans[1] != 0.0 or trans[2] != 0.0:
+        t = [trans[0], trans[1], trans[2]]
+    if rot[0] != 1.0 or rot[1] != 0.0 or rot[2] != 0.0 or rot[3] != 0.0:
+        r = [rot[1], rot[2], rot[3], rot[0]]
+    if sca[0] != 1.0 or sca[1] != 1.0 or sca[2] != 1.0:
+        s = [sca[0], sca[1], sca[2]]
+
     if t is None: t = [0, 0, 0]
     if r is None: r = [0, 0, 0, 1]
     if s is None: s = [1, 1, 1]

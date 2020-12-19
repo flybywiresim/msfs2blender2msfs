@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import bpy
 import mathutils
 
 from . import gltf2_blender_export_keys
@@ -31,7 +32,7 @@ def gather_joint(blender_object, blender_bone, export_settings):
     :param export_settings: the settings for this export
     :return: a glTF2 node (acting as a joint)
     """
-    translation, rotation, scale = __gather_trans_rot_scale(blender_bone, export_settings)
+    translation, rotation, scale = __gather_trans_rot_scale(blender_object, blender_bone, export_settings)
 
     # traverse into children
     children = []
@@ -66,11 +67,14 @@ def gather_joint(blender_object, blender_bone, export_settings):
 
     return node
 
-def __gather_trans_rot_scale(blender_bone, export_settings):
-    if blender_bone.parent is None:
-        m = blender_bone.matrix
+def __gather_trans_rot_scale(armature, blender_bone, export_settings):
+    edit_bones = get_edit_bones(armature, export_settings)
+    edit_bone = edit_bones[blender_bone.name]
+    if edit_bone['parent'] is None:
+        m = edit_bone['matrix']
     else:
-        m = blender_bone.parent.matrix.inverted() @ blender_bone.matrix
+        parent = edit_bones[edit_bone['parent']]
+        m = parent['matrix'].inverted() @ edit_bone['matrix']
     t, r, s = m.decompose()
 
     from . import gltf2_blender_gather_nodes
@@ -86,9 +90,27 @@ def __gather_trans_rot_scale(blender_bone, export_settings):
     if sca[0] != 1.0 or sca[1] != 1.0 or sca[2] != 1.0:
         scale = [sca[0], sca[1], sca[2]]
 
+    bpy.ops.object.mode_set(mode='OBJECT') # this is probably very bad switching between edit and object mode
+
     return translation, rotation, scale
 
 def __gather_extras(blender_bone, export_settings):
     if export_settings['gltf_extras']:
         return generate_extras(blender_bone.bone)
     return None
+
+@cached
+def get_edit_bones(armature, export_settings):
+    # put armature into edit mode to get editbones
+    bpy.context.view_layer.objects.active = armature
+    bpy.ops.object.mode_set(mode='EDIT')
+    
+    edit_bones = armature.data.edit_bones
+    edit_bones_dict = {}
+    for bone in edit_bones:
+        edit_bones_dict[bone.name] = {
+            "parent": (None if bone.parent is None else bone.parent.name),
+            "matrix": bone.matrix
+        }
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return edit_bones_dict
