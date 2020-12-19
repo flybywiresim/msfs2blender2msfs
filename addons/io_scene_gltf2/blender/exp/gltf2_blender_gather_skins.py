@@ -205,7 +205,7 @@ def __gather_name(blender_object, armature, export_settings):
 @cached
 def __gather_skeleton(armature, export_settings): # returns the root bone node
     blender_scene = bpy.data.scenes[0] # there should only ever be one scene for MSFS
-    return gltf2_blender_gather_joints.gather_joint(armature, armature.pose.bones[0], export_settings) # the root bone should be the last child in the list, but this hasn't been thoroughly tested
+    return gltf2_blender_gather_joints.gather_joint(armature, armature.pose.bones[0], export_settings)
 
 @cached
 def get_bone_tree(blender_dummy, blender_object):

@@ -41,7 +41,6 @@ def gather_node(blender_object, library, blender_scene, dupli_object_parent, exp
         gather_node.__cache = {}
         gather_node.__export_settings = export_settings
 
-    #if blender_scene is None and (blender_object.name, library) in gather_node.__cache:
     if blender_scene is None and (blender_object.name, library) in gather_node.__cache:
         print(f"Gathering cached node {blender_object.name}")
         return gather_node.__cache[(blender_object.name, library)]
