@@ -288,16 +288,17 @@ class GlTF2Exporter:
             asobo_buffer_view.byte_offset = offset
             newBufferViews.append(asobo_buffer_view.to_dict())
         old_buffers = self.__gltf.buffer_views
-        data = self.__gltf.to_dict()
-        for accessor in data['accessors']:
-            bufferIndex = accessor['bufferView']
-            bufferName = old_buffers[bufferIndex].name
-            for index, buffer in enumerate(newBufferViews):
-                if bufferName == buffer:
-                    data['accessors'][data['accessors'].index(accessor)]['bufferView'] = index
-                    break
-        data['bufferViews'] = newBufferViews
-        self.__gltf = gltf2_io.gltf_from_dict(data)
+        if len(old_buffers) != len(newBufferViews): # we don't need to re-index if nothing changed
+            data = self.__gltf.to_dict()
+            for accessor in data['accessors']:
+                bufferIndex = accessor['bufferView']
+                bufferName = old_buffers[bufferIndex].name
+                for index, buffer in enumerate(newBufferViews):
+                    if bufferName == buffer:
+                        data['accessors'][data['accessors'].index(accessor)]['bufferView'] = index
+                        break
+            data['bufferViews'] = newBufferViews
+            self.__gltf = gltf2_io.gltf_from_dict(data)
 
 
     def finalize_buffer(self, output_path=None, buffer_name=None, is_glb=False):
