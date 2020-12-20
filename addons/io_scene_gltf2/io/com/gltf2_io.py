@@ -465,7 +465,10 @@ class BufferView:
 
     def to_dict(self):
         result = {}
-        result["buffer"] = from_int(self.buffer)
+        if isinstance(self.buffer, int):
+            result["buffer"] = from_int(self.buffer)
+        else:
+            result["buffer"] = from_int(self.buffer._AsoboBuffer__buffer_index) # this is not that pretty - but is temporary since this buffer view will (probably) be removed
         result["byteLength"] = from_int(self.byte_length)
         result["byteStride"] = from_union([from_int, from_none], self.byte_stride)
         result["byteOffset"] = from_union([from_int, from_none], self.byte_offset)
@@ -862,8 +865,9 @@ class Material:
                                                 self.occlusion_texture)
         result["emissiveTexture"] = from_union([lambda x: to_class(TextureInfo, x), from_none], self.emissive_texture)
         result["emissiveFactor"] = from_union([lambda x: from_list(to_float, x), from_none], self.emissive_factor)
-        if result["emissiveFactor"][0] == 0 and result["emissiveFactor"][1] == 0 and result["emissiveFactor"][2] == 0:
-            result["emissiveFactor"] = None
+        if result["emissiveFactor"] is not None: # prevents an error if we've already converted from gltf to dict
+            if result["emissiveFactor"][0] == 0 and result["emissiveFactor"][1] == 0 and result["emissiveFactor"][2] == 0:
+                result["emissiveFactor"] = None
         result["pbrMetallicRoughness"] = from_union([lambda x: to_class(MaterialPBRMetallicRoughness, x), from_none],
                                                     self.pbr_metallic_roughness)
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
@@ -1151,8 +1155,8 @@ class Texture:
         # return Texture(extensions, extras, name, sampler, source)
         # The msfs gltf texture object don't have a root source prop
         # I have code in here that prevents textures from loading for now
-        source = from_union([from_int, from_none], obj.get("source"))
         msft_texture_dds = MSFT_texture_dds.from_dict(extensions.get("MSFT_texture_dds"))
+        source = from_int(msft_texture_dds.source) # this could not always work? used to check if dict has a source key
         return Texture(extensions, extras, name, sampler, source, msft_texture_dds)
 
     def to_dict(self):

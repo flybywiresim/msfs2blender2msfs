@@ -275,14 +275,30 @@ class GlTF2Exporter:
         return self.__gltf
 
     # Add data from all asobo buffers views into main buffer
-    def finalize_asobo_buffers(self):
+    def finalize_asobo_buffers(self): # i really really really hate this function - should find a way around this at some point. the reason it's needed is because not all hard-coded buffers are needed, and some will export without any data causing an error
+        newBufferViews = []
         for x in self.__asobo_buffer_views:
             asobo_buffer_view = self.__asobo_buffer_views[x]
             binary_data = asobo_buffer_view.buffer.to_bytes()
+            if binary_data == b'': # the buffer won't be needed to be exported since there is no data associated with it
+                continue
             offset = self.__buffer.add(binary_data)
             asobo_buffer_view.buffer = 0
             asobo_buffer_view.byte_length = len(binary_data)
             asobo_buffer_view.byte_offset = offset
+            newBufferViews.append(asobo_buffer_view.to_dict())
+        old_buffers = self.__gltf.buffer_views
+        data = self.__gltf.to_dict()
+        for accessor in data['accessors']:
+            bufferIndex = accessor['bufferView']
+            bufferName = old_buffers[bufferIndex].name
+            for index, buffer in enumerate(newBufferViews):
+                if bufferName == buffer:
+                    data['accessors'][data['accessors'].index(accessor)]['bufferView'] = index
+                    break
+        data['bufferViews'] = newBufferViews
+        self.__gltf = gltf2_io.gltf_from_dict(data)
+
 
     def finalize_buffer(self, output_path=None, buffer_name=None, is_glb=False):
         """Finalize the glTF and write buffers."""
