@@ -239,7 +239,7 @@ def __prepare_nla_tracks(nodes):
     # create empty temp tracks (we star these to make an object
     # "unanimated").
     for node in nodes:
-        if node.__blender_data[0] != 'OBJECT':
+        if node.__blender_data[0] != 'OBJECT' and node.__blender_data[0] != 'BONE':
             continue
         ob = node.__blender_data[1]
         if not ob.animation_data:
@@ -261,7 +261,7 @@ def __prepare_nla_tracks(nodes):
 def __restore_original_nla_track_state(nodes):
     # Undoes the NLA track changes __prepare_nodes did.
     for node in nodes:
-        if node.__blender_data[0] != 'OBJECT':
+        if node.__blender_data[0] != 'OBJECT' and node.__blender_data[0] != 'BONE':
             continue
         ob = node.__blender_data[1]
         if not ob.animation_data:
