@@ -18,7 +18,7 @@ from io_scene_gltf2.io.com import gltf2_io
 from io_scene_gltf2.io.com.gltf2_io_debug import print_console
 from io_scene_gltf2.blender.exp import gltf2_blender_gather_joints
 from io_scene_gltf2.blender.exp import gltf2_blender_gather_nodes
-from io_scene_gltf2.blender.exp import gltf2_blender_gather_animations_bake
+from io_scene_gltf2.blender.exp import gltf2_blender_gather_animations
 from io_scene_gltf2.blender.exp.gltf2_blender_gather_cache import cached
 from ..com.gltf2_blender_extras import generate_extras
 from io_scene_gltf2.blender.exp import gltf2_blender_export_keys
@@ -89,7 +89,7 @@ def __gather_animations(blender_scene, anim_scene, export_settings):
             blender_object.library.name if blender_object.library else None,
             blender_scene, None, export_settings)
 
-    animations = gltf2_blender_gather_animations_bake.gather_animations(anim_scene, export_settings)
+    animations = gltf2_blender_gather_animations.gather_animations(anim_scene, export_settings)
     return animations
 
 
