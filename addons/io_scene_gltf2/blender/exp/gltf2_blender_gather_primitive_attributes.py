@@ -201,8 +201,8 @@ def __gather_skins(blender_primitive, export_settings, asobo_vertex_type):
 
             # weights
             internal_weight = blender_primitive["attributes"][weight_id]
-            # normalize first 4 weights, when not exporting all influences
-            if not export_settings['gltf_all_vertex_influences']:
+            # normalize first 4 weights, when not exporting all influences, except BLEND1 since it's already technically normalized
+            if not export_settings['gltf_all_vertex_influences'] and not asobo_vertex_type == 'BLEND1':
                 for idx in range(0, len(internal_weight), 4):
                     weight_slice = internal_weight[idx:idx + 4]
                     total = sum(weight_slice)
