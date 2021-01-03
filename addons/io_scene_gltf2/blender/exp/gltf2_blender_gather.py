@@ -52,29 +52,38 @@ def __gather_scene(blender_scene, export_settings):
         name=None,
         nodes=[]
     )
-    armature = None
     for _blender_object in [obj for obj in blender_scene.objects if obj.proxy is None]:
-        # set root armature - possibly could refactor
-        if _blender_object.type == "ARMATURE": # set the armature as well as extract the root bone from the skeleton
+        if _blender_object.type == "ARMATURE": # extract the root bone from the skeleton
             armature = _blender_object
             blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
             for bone in blender_object.pose.bones: # sometimes there can be more than one bone at root level
                 if bone.parent is None:
-                    scene.nodes.append(gltf2_blender_gather_joints.gather_joint(blender_object, bone, export_settings))
-            continue
-        if _blender_object.parent is None or armature is None: # skip if the object is not a child or if the armature isn't set
-            continue
-        if _blender_object.parent.parent is None and _blender_object.type == "MESH": # add skinned meshes and meshes with a parent bone to the scene
-            blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
-            modifiers = {m.type: m for m in blender_object.modifiers}
-            if ("ARMATURE" not in modifiers or modifiers["ARMATURE"].object is None) and not blender_object.parent_bone == "": # for some reason the value for no parent bone is an empty string instead of None
+                    joint = gltf2_blender_gather_joints.gather_joint(blender_object, bone, export_settings)
+                    if joint is not None:
+                        scene.nodes.append(joint)
+        elif _blender_object.type == "MESH":
+            if _blender_object.parent is None: # skip if the object is not a child
                 continue
-            node = gltf2_blender_gather_nodes.gather_node(
-                blender_object,
-                blender_object.library.name if blender_object.library else None,
-                blender_scene, None, export_settings)
-            if node is not None:
-                scene.nodes.append(node)
+            if _blender_object.parent.parent is None: # add skinned meshes and meshes with a parent bone to the scene
+                blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
+                modifiers = {m.type: m for m in blender_object.modifiers}
+                if ("ARMATURE" not in modifiers or modifiers["ARMATURE"].object is None) and not blender_object.parent_bone == "": # for some reason the value for no parent bone is an empty string instead of None
+                    continue
+                node = gltf2_blender_gather_nodes.gather_node(
+                    blender_object,
+                    blender_object.library.name if blender_object.library else None,
+                    blender_scene, None, export_settings)
+                if node is not None:
+                    scene.nodes.append(node)
+        elif _blender_object.type == "EMPTY": # in rare cases where there is more than one root bone, if there is an empty that is a direct child of an armature and has no parent bone, we export it 
+            if _blender_object.parent_bone == "" and _blender_object.parent.parent is None:
+                blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
+                node = gltf2_blender_gather_nodes.gather_node(
+                    blender_object,
+                    blender_object.library.name if blender_object.library else None,
+                    blender_scene, None, export_settings)
+                if node is not None:
+                    scene.nodes.append(node)
 
     export_user_extensions('gather_scene_hook', export_settings, scene, blender_scene)
 
