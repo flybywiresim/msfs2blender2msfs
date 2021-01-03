@@ -204,7 +204,7 @@ def __gather_name(blender_object, armature, export_settings):
 
 def __gather_skeleton(armature, joints, export_settings): # returns the root bone node
     blender_scene = bpy.data.scenes[0] # there should only ever be one scene for MSFS
-    return gltf2_blender_gather_joints.gather_joint(armature, joints[0], export_settings) # there are some situations where there are 2 bones at the root level, so we use the first joint in the skin
+    return gltf2_blender_gather_joints.gather_joint(armature, armature.pose.bones[joints[0].name], export_settings) # there are some situations where there are 2 bones at the root level, so we use the first joint in the skin
 
 
 @cached
