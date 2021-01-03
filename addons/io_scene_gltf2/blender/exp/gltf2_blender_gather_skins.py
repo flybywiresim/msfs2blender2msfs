@@ -40,14 +40,14 @@ def gather_skin(blender_object, export_settings):
         return None
 
     armature = modifiers["ARMATURE"].object
-
+    joints = __gather_joints(blender_object, export_settings)
     skin = gltf2_io.Skin(
         extensions=__gather_extensions(blender_object, export_settings),
         extras=__gather_extras(blender_object, export_settings),
         inverse_bind_matrices=__gather_inverse_bind_matrices(blender_object, export_settings),
-        joints=__gather_joints(blender_object, export_settings),
+        joints=joints,
         name=__gather_name(blender_object, armature, export_settings),
-        skeleton=__gather_skeleton(armature, export_settings)
+        skeleton=__gather_skeleton(armature, joints, export_settings)
     )
 
     export_user_extensions('gather_skin_hook', export_settings, skin, blender_object)
@@ -197,15 +197,14 @@ def __gather_name(blender_object, armature, export_settings):
     if len(skinIndexes[skinNumber]) > 1: # if more than one mesh shares the same skin
         if not skinIndexes[skinNumber][0] == blender_object.name:
             subNumber = skinIndexes[skinNumber].index(blender_object.name)
-    name = (f"skeleton #{str(skinNumber)}" if subNumber == None else f"skeleton #{str(skinNumber)}_{str(subNumber)}")
+    name = (f"skeleton #{str(skinNumber)}" if subNumber is None else f"skeleton #{str(skinNumber)}_{str(subNumber)}")
     
     return name
 
 
-@cached
-def __gather_skeleton(armature, export_settings): # returns the root bone node
+def __gather_skeleton(armature, joints, export_settings): # returns the root bone node
     blender_scene = bpy.data.scenes[0] # there should only ever be one scene for MSFS
-    return gltf2_blender_gather_joints.gather_joint(armature, armature.pose.bones[0], export_settings)
+    return gltf2_blender_gather_joints.gather_joint(armature, joints[0], export_settings) # there are some situations where there are 2 bones at the root level, so we use the first joint in the skin
 
 @cached
 def get_bone_tree(blender_dummy, blender_object):
