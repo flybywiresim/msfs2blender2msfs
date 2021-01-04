@@ -149,7 +149,7 @@ def __gather_animation(pre_anim, nodes, export_settings):
                 sampler = gltf2_io.AnimationSampler(
                     input=__get_keyframe_accessor(f_start, f_end, f_step),
                     output=__encode_output_accessor(data[path][i], path),
-                    interpolation=None,  # LINEAR
+                    interpolation='LINEAR',
                     extensions=None,
                     extras=None,
                 )
