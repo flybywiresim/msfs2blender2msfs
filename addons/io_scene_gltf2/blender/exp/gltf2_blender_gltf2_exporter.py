@@ -388,9 +388,14 @@ class GlTF2Exporter:
     def add_original_extensions(self, requiredExtensions, usedExtensions):
         if self.__finalized:
             raise RuntimeError("Tried to add animation to finalized glTF file")
-
-        self.__gltf.extensions_required += requiredExtensions
-        self.__gltf.extensions_used += usedExtensions
+        
+        # prevent duplicate extensions from exporting
+        for extension in requiredExtensions:
+            if extension not in self.__gltf.extensions_required:
+                self.__gltf.extensions_required.append(extension)
+        for extension in usedExtensions:
+            if extension not in self.__gltf.extensions_used:
+                self.__gltf.extensions_used.append(extension)
 
     def add_asobo_bounding_box(self, extensions):
         if self.__finalized:
