@@ -72,9 +72,9 @@ def __gather_animation(pre_anim, nodes, export_settings):
         for track in ob.animation_data.nla_tracks:
             if track.name == anim_name:
                 track.is_solo = True
-                if ob.type == "ARMATURE" and node.__blender_data[0] == "BONE":
+                if ob.type == 'ARMATURE' and node.__blender_data[0] == 'BONE':
                     # only append bones that are animated in current anim
-                    actions = __get_blender_actions(ob, export_settings)
+                    actions = __get_blender_actions(ob)
                     for action in actions:
                         if action[1] == anim_name:
                             for fcurve in action[0].fcurves:
@@ -123,27 +123,51 @@ def __gather_animation(pre_anim, nodes, export_settings):
     input_accessor = __get_keyframe_accessor(f_start, f_end, f_step)
 
     for i, node in enumerate(anim_nodes):
+        # Get paths used in the NLA track
+        actions = __get_blender_actions(node.__blender_data[1])
+        paths = []
+
+        pathTypes = {
+            'delta_location': 'translation',
+            'delta_rotation_euler': 'rotation',
+            'location': 'translation',
+            'rotation_axis_angle': 'rotation',
+            'rotation_euler': 'rotation',
+            'rotation_quaternion': 'rotation',
+            'scale': 'scale'
+        }
+
+        for action in actions:
+            if action[1] == anim_name:
+                for fcurve in action[0].fcurves:
+                    data_path = fcurve.data_path
+                    if node.__blender_data[0] == 'OBJECT':
+                        paths.append(pathTypes.get(data_path))
+                    else: # for armatures
+                        paths.append(pathTypes.get(data_path.rpartition('.')[2]))
+                        
         for path in ['translation', 'rotation', 'scale']:
-            sampler = gltf2_io.AnimationSampler(
-                input=input_accessor,
-                output=__encode_output_accessor(data[path][i]),
-                interpolation=None,  # LINEAR
-                extensions=None,
-                extras=None,
-            )
-            samplers.append(sampler)
-            channel = gltf2_io.AnimationChannel(
-                sampler=len(samplers) - 1,
-                target=gltf2_io.AnimationChannelTarget(
-                    node=node,
-                    path=path,
+            if path in paths:
+                sampler = gltf2_io.AnimationSampler(
+                    input=input_accessor,
+                    output=__encode_output_accessor(data[path][i]),
+                    interpolation=None,  # LINEAR
                     extensions=None,
                     extras=None,
-                ),
-                extensions=None,
-                extras=None,
-            )
-            channels.append(channel)
+                )
+                samplers.append(sampler)
+                channel = gltf2_io.AnimationChannel(
+                    sampler=len(samplers) - 1,
+                    target=gltf2_io.AnimationChannelTarget(
+                        node=node,
+                        path=path,
+                        extensions=None,
+                        extras=None,
+                    ),
+                    extensions=None,
+                    extras=None,
+                )
+                channels.append(channel)
 
     animation = gltf2_io.Animation(
         name=anim_name,
@@ -332,7 +356,6 @@ def __encode_output_accessor(values):
     )
 
 def __get_blender_actions(blender_object: bpy.types.Object,
-                            export_settings
                           ) -> typing.List[typing.Tuple[bpy.types.Action, str, str]]:
     # Gets bones/objects used in a certain action. Useful for filtering out bones in an animation that aren't needed
     blender_actions = []
@@ -344,42 +367,19 @@ def __get_blender_actions(blender_object: bpy.types.Object,
         if blender_object.animation_data.action is not None:
             blender_actions.append(blender_object.animation_data.action)
             blender_tracks[blender_object.animation_data.action.name] = None
-            action_on_type[blender_object.animation_data.action.name] = "OBJECT"
+            action_on_type[blender_object.animation_data.action.name] = 'OBJECT'
 
         # Collect associated strips from NLA tracks.
-        if export_settings['gltf_nla_strips'] is True:
-            for track in blender_object.animation_data.nla_tracks:
-                # Multi-strip tracks do not export correctly yet (they need to be baked),
-                # so skip them for now and only write single-strip tracks.
-                non_muted_strips = [strip for strip in track.strips if strip.action is not None and strip.mute is False]
-                if track.strips is None or len(non_muted_strips) != 1:
-                    continue
-                for strip in non_muted_strips:
-                    blender_actions.append(strip.action)
-                    blender_tracks[strip.action.name] = track.name # Always set after possible active action -> None will be overwrite
-                    action_on_type[strip.action.name] = "OBJECT"
-
-    if blender_object.type == "MESH" \
-            and blender_object.data is not None \
-            and blender_object.data.shape_keys is not None \
-            and blender_object.data.shape_keys.animation_data is not None: # Probably useless to have a mesh check as this is only used for bones, but it's worth keeping it here
-
-            if blender_object.data.shape_keys.animation_data.action is not None:
-                blender_actions.append(blender_object.data.shape_keys.animation_data.action)
-                blender_tracks[blender_object.data.shape_keys.animation_data.action.name] = None
-                action_on_type[blender_object.data.shape_keys.animation_data.action.name] = "SHAPEKEY"
-
-            if export_settings['gltf_nla_strips'] is True:
-                for track in blender_object.data.shape_keys.animation_data.nla_tracks:
-                    # Multi-strip tracks do not export correctly yet (they need to be baked),
-                    # so skip them for now and only write single-strip tracks.
-                    non_muted_strips = [strip for strip in track.strips if strip.action is not None and strip.mute is False]
-                    if track.strips is None or len(non_muted_strips) != 1:
-                        continue
-                    for strip in non_muted_strips:
-                        blender_actions.append(strip.action)
-                        blender_tracks[strip.action.name] = track.name # Always set after possible active action -> None will be overwrite
-                        action_on_type[strip.action.name] = "SHAPEKEY"
+        for track in blender_object.animation_data.nla_tracks:
+            # Multi-strip tracks do not export correctly yet (they need to be baked),
+            # so skip them for now and only write single-strip tracks.
+            non_muted_strips = [strip for strip in track.strips if strip.action is not None and strip.mute is False]
+            if track.strips is None or len(non_muted_strips) != 1:
+                continue
+            for strip in non_muted_strips:
+                blender_actions.append(strip.action)
+                blender_tracks[strip.action.name] = track.name # Always set after possible active action -> None will be overwrite
+                action_on_type[strip.action.name] = 'OBJECT'
 
     # Remove duplicate actions.
     blender_actions = list(set(blender_actions))

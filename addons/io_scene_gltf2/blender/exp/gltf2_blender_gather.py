@@ -53,7 +53,7 @@ def __gather_scene(blender_scene, export_settings):
         nodes=[]
     )
     for _blender_object in [obj for obj in blender_scene.objects if obj.proxy is None]:
-        if _blender_object.type == "ARMATURE": # extract the root bone from the skeleton
+        if _blender_object.type == "ARMATURE": # extract the root bone from the armature
             armature = _blender_object
             blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
             for bone in blender_object.pose.bones: # sometimes there can be more than one bone at root level
