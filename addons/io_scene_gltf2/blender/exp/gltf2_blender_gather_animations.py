@@ -120,8 +120,6 @@ def __gather_animation(pre_anim, nodes, export_settings):
     channels = []
     samplers = []
 
-    input_accessor = __get_keyframe_accessor(f_start, f_end, f_step)
-
     for i, node in enumerate(anim_nodes):
         # Get paths used in the NLA track
         actions = __get_blender_actions(node.__blender_data[1])
@@ -149,8 +147,8 @@ def __gather_animation(pre_anim, nodes, export_settings):
         for path in ['translation', 'rotation', 'scale']:
             if path in paths:
                 sampler = gltf2_io.AnimationSampler(
-                    input=input_accessor,
-                    output=__encode_output_accessor(data[path][i]),
+                    input=__get_keyframe_accessor(f_start, f_end, f_step),
+                    output=__encode_output_accessor(data[path][i], path),
                     interpolation=None,  # LINEAR
                     extensions=None,
                     extras=None,
@@ -330,16 +328,21 @@ def __get_keyframe_accessor(frame_start, frame_end, frame_step):
         byte_offset=None,
         extensions=None,
         extras=None,
-        name=None,
+        name='accessorAnimationInput',
         normalized=None,
         sparse=None,
     )
 
 
-def __encode_output_accessor(values):
+def __encode_output_accessor(values, path):
     # Encodes a list of T, R, or S (Vector/Quaternion) values to an accessor.
     vals = [x for val in values for x in val]
     vals_data = array.array('f', vals).tobytes()
+    name = {
+        'translation': 'accessorAnimationPositions',
+        'rotation': 'accessorAnimationRotations',
+        'scale': 'accessorAnimationScales'
+    }.get(path)
     return gltf2_io.Accessor(
         buffer_view=gltf2_io_binary_data.BinaryData(vals_data),
         component_type=gltf2_io_constants.ComponentType.Float,
@@ -350,7 +353,7 @@ def __encode_output_accessor(values):
         byte_offset=None,
         extensions=None,
         extras=None,
-        name=None,
+        name=name,
         normalized=None,
         sparse=None,
     )
