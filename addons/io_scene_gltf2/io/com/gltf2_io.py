@@ -865,9 +865,6 @@ class Material:
                                                 self.occlusion_texture)
         result["emissiveTexture"] = from_union([lambda x: to_class(TextureInfo, x), from_none], self.emissive_texture)
         result["emissiveFactor"] = from_union([lambda x: from_list(to_float, x), from_none], self.emissive_factor)
-        if result["emissiveFactor"] is not None: # prevents an error if we've already converted from gltf to dict
-            if result["emissiveFactor"][0] == 0 and result["emissiveFactor"][1] == 0 and result["emissiveFactor"][2] == 0:
-                result["emissiveFactor"] = None
         result["pbrMetallicRoughness"] = from_union([lambda x: to_class(MaterialPBRMetallicRoughness, x), from_none],
                                                     self.pbr_metallic_roughness)
         result["extensions"] = from_union([lambda x: from_dict(from_extension, x), from_none],
@@ -1114,7 +1111,7 @@ class Skin:
         return result
 
 # MSFS
-class MSFT_texture_dds:
+class Texture_Source:
     """A texture and its sampler."""
 
     def __init__(self, source):
@@ -1124,7 +1121,7 @@ class MSFT_texture_dds:
     def from_dict(obj):
         assert isinstance(obj, dict)
         source = from_union([from_int, from_none], obj.get("source"))
-        return MSFT_texture_dds(source)
+        return Texture_Source(source)
 
     def to_dict(self):
         result = {}
@@ -1135,13 +1132,13 @@ class MSFT_texture_dds:
 class Texture:
     """A texture and its sampler."""
 
-    def __init__(self, extensions, extras, name, sampler, source, msft_texture_dds=''):
+    def __init__(self, extensions, extras, name, sampler, source, texture=''):
         self.extensions = extensions
         self.extras = extras
         self.name = name
         self.sampler = sampler
         self.source = source
-        self.MSFT_texture_dds = msft_texture_dds
+        self.texture = texture
 
     @staticmethod
     def from_dict(obj):
@@ -1155,9 +1152,14 @@ class Texture:
         # return Texture(extensions, extras, name, sampler, source)
         # The msfs gltf texture object don't have a root source prop
         # I have code in here that prevents textures from loading for now
-        msft_texture_dds = MSFT_texture_dds.from_dict(extensions.get("MSFT_texture_dds"))
-        source = from_int(msft_texture_dds.source) # this could not always work? used to check if dict has a source key
-        return Texture(extensions, extras, name, sampler, source, msft_texture_dds)
+        texture = None
+        source = None
+        if extensions: # not every texture is DDS
+            texture = Texture_Source.from_dict(extensions.get("MSFT_texture_dds"))
+        else:
+            texture = Texture_Source(from_int(obj.get("source")))
+        source = from_int(texture.source) # this could not always work? used to check if dict has a source key
+        return Texture(extensions, extras, name, sampler, source, texture)
 
     def to_dict(self):
         result = {}

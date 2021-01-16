@@ -897,6 +897,14 @@ class ImportGLTF2(Operator, ImportHelper):
         default=False,
     )
 
+    include_sim_textures: BoolProperty(
+        name='Include Flight Simulator textures',
+        description='Searches for textures used in the file in the Flight Simulator '
+                    'install directory. This setting is only used if importing a '
+                    'file from outside of the simulator directory',
+        default=True
+    )
+
     def draw(self, context):
         layout = self.layout
 
@@ -906,6 +914,7 @@ class ImportGLTF2(Operator, ImportHelper):
         # layout.prop(self, 'texture_folder_name')
         # layout.prop(self, 'guess_original_bind_pose')
         # layout.prop(self, 'bone_heuristic')
+        layout.prop(self, 'include_sim_textures')
 
     def execute(self, context):
         return self.import_gltf2(context)
@@ -948,7 +957,7 @@ class ImportGLTF2(Operator, ImportHelper):
             return {'CANCELLED'}
         print("Data are loaded, start creating Blender stuff")
         start_time = time.time()
-        BlenderGlTF.create(self.gltf_importer, self.report, addon_prefs, "TEXTURE", self.filepath)
+        BlenderGlTF.create(self.gltf_importer, self.report, addon_prefs, import_settings, "TEXTURE", self.filepath)
         elapsed_s = "{:.2f}s".format(time.time() - start_time)
         print("MSFS glTF import finished in " + elapsed_s)
         self.gltf_importer.log.removeHandler(self.gltf_importer.log_handler)
@@ -977,15 +986,23 @@ class MSFSImporterExporter(AddonPreferences):
 
     texconv_file: StringProperty(
         name="Folder path",
-        description="absolute path to Microsoft texconv tool",
+        description="Absolute path to Microsoft texconv tool",
         default="",
         subtype="FILE_PATH"
     )
 
     texture_target_dir: StringProperty(
         name="Folder path",
-        description="location where converted textures get saved in their "
+        description="Location where converted textures get saved in their "
                     "subfolders",
+        default="",
+        subtype="DIR_PATH"
+    )
+
+    flightsim_dir: StringProperty(
+        name="Folder path",
+        description="absolute path to the Flight Simulator installation "
+                    "(where your Community and Official folders are",
         default="",
         subtype="DIR_PATH"
     )
@@ -1018,22 +1035,41 @@ class MSFSImporterExporter(AddonPreferences):
                 text="No texconv.exe file has been selected. Texture import "
                      "is disabled.",
                 icon='ERROR')
+                
         row = box.row()
         row.prop(self, "texture_target_dir",
-                 text="Base path for converted textures")
+                 text="Path for converted textures")
         target_path = pathlib.Path(self.texture_target_dir)
         if self.texture_target_dir == "" or not target_path.exists() or not \
                 target_path.is_dir():
             self.textures_allowed = False
             row = box.row()
             row.label(
-                text="No valid conversion path path entered. Texture import "
+                text="No valid conversion path entered. Texture import "
+                     "is disabled.",
+                icon='ERROR')
+
+        row = box.row()
+        row.prop(self, "flightsim_dir",
+                 text="Path to Flight Simulator (root level)")
+        target_path = pathlib.Path(self.flightsim_dir)
+        if self.flightsim_dir == "" or not target_path.exists() or not \
+                target_path.is_dir():
+            self.textures_allowed = False
+            row = box.row()
+            row.label(
+                text="No valid Flight Simulator path path entered. Texture import "
                      "is disabled.",
                 icon='ERROR')
 
 def menu_func_import(self, context):
     self.layout.operator(ImportGLTF2.bl_idname, text='glTF 2.0 for MSFS 2020 (.glb/.gltf)')
 
+from .flight_sim import gltf2_blender_custom_material_ui
+
+modules = (
+    gltf2_blender_custom_material_ui,
+)
 
 classes = (
     ExportGLTF2,
@@ -1055,6 +1091,8 @@ classes = (
 def register():
     for c in classes:
         bpy.utils.register_class(c)
+    for m in modules:
+        m.register()
     # bpy.utils.register_module(__name__)
 
     # add to the export / import menu
@@ -1065,6 +1103,8 @@ def register():
 def unregister():
     for c in classes:
         bpy.utils.unregister_class(c)
+    for m in modules:
+        m.unregister()
     for f in extension_panel_unregister_functors:
         f()
     extension_panel_unregister_functors.clear()

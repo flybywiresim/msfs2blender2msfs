@@ -53,7 +53,7 @@ class BlenderMesh():
 
                 # Create Blender material if needed
                 if vertex_color not in pymaterial.blender_material:
-                    BlenderMaterial.create(gltf, prim.material, vertex_color)
+                    BlenderMaterial.createPlaceholder(gltf, prim.material, vertex_color)
                 material_name = pymaterial.blender_material[vertex_color]
                 material = bpy.data.materials[material_name]
 

@@ -16,6 +16,7 @@ import bpy
 from mathutils import Vector, Quaternion, Matrix
 import subprocess
 import pathlib
+import os
 from .gltf2_blender_scene import BlenderScene
 
 
@@ -25,8 +26,8 @@ class BlenderGlTF():
         raise RuntimeError("%s should not be instantiated" % cls)
 
     @staticmethod
-    def create(gltf, report, addon_prefs, texture_folder_name, filepath):
-        BlenderGlTF.load_dds_images(gltf, report, addon_prefs, texture_folder_name, filepath)
+    def create(gltf, report, addon_prefs, import_settings, texture_folder_name, filepath):
+        BlenderGlTF.load_dds_images(gltf, report, addon_prefs, import_settings, texture_folder_name, filepath)
         """Create glTF main method, with optional profiling"""
         profile = bpy.app.debug_value == 102
         if profile:
@@ -204,11 +205,15 @@ class BlenderGlTF():
 
     # Original is from https://github.com/bestdani/msfs2blend
     @staticmethod
-    def load_dds_images(gltf, report, addon_prefs, texture_folder_name, filepath):
+    def load_dds_images(gltf, report, addon_prefs, import_settings, texture_folder_name, filepath):
         file_path = pathlib.Path(filepath)
         textures_allowed = addon_prefs.textures_allowed
-        texture_in_dir = file_path.parent.parent / texture_folder_name
-        common_texture_in_dir = file_path.parent.parent.parent.parent.parent.parent / 'fs-base\\texture'
+        if addon_prefs.flightsim_dir in filepath or import_settings["include_sim_textures"]: # we are importing something in the flight sim path, OR the user has specified to include simulator texture files
+            texture_in_dir = file_path.parent.parent / texture_folder_name
+            common_texture_in_dir = pathlib.Path(addon_prefs.flightsim_dir) # emulate asobo's file system
+        else: # we are importing outside of the flight sim path and the user doesn't want to import flight simulator textures
+            texture_in_dir = file_path.parent.parent / texture_folder_name
+            common_texture_in_dir = None # don't look for common textures
 
         if textures_allowed:
             texconv_path = pathlib.Path(addon_prefs.texconv_file)
@@ -227,30 +232,38 @@ class BlenderGlTF():
         to_convert_images = []
         converted_images = []
         final_image_paths = []
+        common_files = []
+        if common_texture_in_dir is not None:
+            for root, _, files in os.walk(common_texture_in_dir):
+                for file in files:
+                    common_files.append((root, file))
         for i, image in enumerate(gltf.data.images):
             try:
                 dds_file = texture_in_dir / image.uri
                 # if file doesnt exist
                 # check in detail maps folder
             except KeyError:
-                report({'ERROR'}, f"invalid image at {i}")
+                report({'ERROR'}, f"invalid image at {i}. Try enabling Flight Simulator textures and making sure your simulator location is correct in add-on preferences. Also be sure to check if the texture actually exists")
                 final_image_paths.append(None)
-                continue
 
             if not dds_file.exists():
-                dds_file = common_texture_in_dir / 'DETAILMAP' / image.uri
+                if common_texture_in_dir is not None and common_files:
+                    for root, file in common_files:
+                        if file == image.uri:
+                            if "Community" in root: # community textures always override official files
+                                dds_file = pathlib.Path(root) / file
+                                break
+                            else:
+                                dds_file = pathlib.Path(root) / file # no continue since we still want to search for community textures
                 if not dds_file.exists():
-                    dds_file = common_texture_in_dir / 'GLASS' / image.uri
-                    if not dds_file.exists():
-                        dds_file = common_texture_in_dir / 'INTERIORS' / image.uri
-                        if not dds_file.exists():
-                            report({'ERROR'},
-                                f"invalid image file location at {i}: {dds_file}")
-                            final_image_paths.append(None)
-                            continue
-
+                    report({'ERROR'}, f"Invalid image file location at {i}: {dds_file}. Try enabling Flight Simulator textures and making sure your simulator location is correct in add-on preferences. Also be sure to check if the texture actually exists")
+                    final_image_paths.append(None)
+                            
             final_image_paths.append('')
-            to_convert_images.append(str(dds_file))
+            if dds_file is None: # if the file does not exist, append a "fake" path
+                to_convert_images.append('')
+            else:
+                to_convert_images.append(str(dds_file))
 
         output_dir_param = str(texture_out_dir)
         texture_out_dir.mkdir(parents=True, exist_ok=True)
@@ -281,11 +294,11 @@ class BlenderGlTF():
                         converted_images.append(path)
                     else:
                         converted_images.append(None)
+                elif line.startswith('reading') and 'FAILED' in line: # this gets called if we added a fake path
+                    converted_images.append(None)
 
             conv_i = 0
             for i, image in enumerate(final_image_paths):
-                if image is None:
-                    continue
                 try:
                     # final_image_paths[i] = converted_images[conv_i]
                     gltf.data.images[conv_i].uri = str(converted_images[conv_i])

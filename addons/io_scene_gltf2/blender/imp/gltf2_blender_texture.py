@@ -15,182 +15,133 @@
 import bpy
 
 from .gltf2_blender_image import BlenderImage
-from ..com.gltf2_blender_conversion import texture_transform_gltf_to_blender
-from io_scene_gltf2.io.com.gltf2_io import Sampler
-from io_scene_gltf2.io.com.gltf2_io_constants import TextureFilter, TextureWrap
 
-def texture(
-    mh,
-    tex_info,
-    location, # Upper-right corner of the TexImage node
-    label, # Label for the TexImg node
-    color_socket,
-    alpha_socket=None,
-    is_data=False,
-):
-    """Creates nodes for a TextureInfo and hooks up the color/alpha outputs."""
-    x, y = location
-    pytexture = mh.gltf.data.textures[tex_info.index]
-    if pytexture.sampler is not None:
-        pysampler = mh.gltf.data.samplers[pytexture.sampler]
-    else:
-        pysampler = Sampler.from_dict({})
-
-    needs_uv_map = False  # whether to create UVMap node
-
-    # Image Texture
-    tex_img = mh.node_tree.nodes.new('ShaderNodeTexImage')
-    tex_img.location = x - 240, y
-    tex_img.label = label
-    # Get image
-    if pytexture.source is not None:
-        BlenderImage.create(mh.gltf, pytexture.source, label)
-        pyimg = mh.gltf.data.images[pytexture.source]
-        blender_image_name = pyimg.blender_image_name
-        if blender_image_name:
-            tex_img.image = bpy.data.images[blender_image_name]
-    else:
-        # MSFS
-        if pytexture.MSFT_texture_dds is not None:
-            BlenderImage.create(mh.gltf, pytexture.MSFT_texture_dds.source, label)
-            pyimg = mh.gltf.data.images[pytexture.MSFT_texture_dds.source]
+class Textures:
+    
+    @staticmethod
+    def loadImage(gltf, pytexture, label):
+        if pytexture.texture is not None:
+            BlenderImage.create(gltf, pytexture.texture.source, label)
+            pyimg = gltf.data.images[pytexture.texture.source]
             blender_image_name = pyimg.blender_image_name
             if blender_image_name:
-                tex_img.image = bpy.data.images[blender_image_name]
-    # Set colorspace for data images
-    if is_data:
-        if tex_img.image:
-            tex_img.image.colorspace_settings.is_data = True
-    # Set filtering
-    set_filtering(tex_img, pysampler)
-    # Outputs
-    mh.node_tree.links.new(color_socket, tex_img.outputs['Color'])
-    if alpha_socket is not None:
-        mh.node_tree.links.new(alpha_socket, tex_img.outputs['Alpha'])
-    # Inputs
-    uv_socket = tex_img.inputs[0]
+                return bpy.data.images[blender_image_name]
 
-    x -= 340
+    @staticmethod
+    def loadTextures(gltf, pymaterial, blender_material):
+        # Something important to note - the comp texture contains different "textures" in each channel, so we reuse the comp texture a few times
+        # Red channel = ambient occlusion, green channel = roughness, blue channel = metalness
+        if pymaterial.normal_texture:
+            Textures.loadNormalTexture(gltf, pymaterial, blender_material)
+        if pymaterial.occlusion_texture: # the metallic texture is the occlusion texture
+            Textures.loadOcclusionTexture(gltf, pymaterial, blender_material)
+        if pymaterial.emissive_texture:
+            Textures.loadEmissiveTexture(gltf, pymaterial, blender_material)
+        if pymaterial.pbr_metallic_roughness:
+            Textures.loadPBRMetallicRoughness(gltf, pymaterial, blender_material)
 
-    # Do wrapping
-    wrap_s = pysampler.wrap_s
-    wrap_t = pysampler.wrap_t
-    if wrap_s is None:
-        wrap_s = TextureWrap.Repeat
-    if wrap_t is None:
-        wrap_t = TextureWrap.Repeat
-    # If wrapping is REPEATxREPEAT or CLAMPxCLAMP, just set tex_img.extension
-    if (wrap_s, wrap_t) == (TextureWrap.Repeat, TextureWrap.Repeat):
-        tex_img.extension = 'REPEAT'
-    elif (wrap_s, wrap_t) == (TextureWrap.ClampToEdge, TextureWrap.ClampToEdge):
-        tex_img.extension = 'EXTEND'
-    else:
-        # Otherwise separate the UV components and use math nodes to compute
-        # the wrapped UV coordinates
-        # => [Separate XYZ] => [Wrap for S] => [Combine XYZ] =>
-        #                   => [Wrap for T] =>
+    @staticmethod
+    def loadNormalTexture(gltf, pymaterial, blender_material):
+        pytexture = gltf.data.textures[pymaterial.normal_texture.index]
+        image = Textures.loadImage(gltf, pytexture, "NORMALMAP")
+        blender_material.msfs_normal_texture = image
 
-        tex_img.extension = 'EXTEND'  # slightly better errors near the edge than REPEAT
+    @staticmethod
+    def loadOcclusionTexture(gltf, pymaterial, blender_material):
+        pytexture = gltf.data.textures[pymaterial.occlusion_texture.index]
+        image = Textures.loadImage(gltf, pytexture, "OCCLUSION")
+        blender_material.msfs_metallic_texture = image
 
-        # Combine XYZ
-        com_uv = mh.node_tree.nodes.new('ShaderNodeCombineXYZ')
-        com_uv.location = x - 140, y - 100
-        mh.node_tree.links.new(uv_socket, com_uv.outputs[0])
-        u_socket = com_uv.inputs[0]
-        v_socket = com_uv.inputs[1]
-        x -= 200
+    @staticmethod
+    def loadEmissiveTexture(gltf, pymaterial, blender_material):
+        if pymaterial.emissive_texture:
+            pytexture = gltf.data.textures[pymaterial.emissive_texture.index]
+            image = Textures.loadImage(gltf, pytexture, "EMISSIVE")
+            blender_material.msfs_emissive_texture = image
 
-        for i in [0, 1]:
-            wrap = [wrap_s, wrap_t][i]
-            socket = [u_socket, v_socket][i]
-            if wrap == TextureWrap.Repeat:
-                # WRAP node for REPEAT
-                math = mh.node_tree.nodes.new('ShaderNodeMath')
-                math.location = x - 140, y + 30 - i*200
-                math.operation = 'WRAP'
-                math.inputs[1].default_value = 0
-                math.inputs[2].default_value = 1
-                mh.node_tree.links.new(socket, math.outputs[0])
-                socket = math.inputs[0]
-            elif wrap == TextureWrap.MirroredRepeat:
-                # PINGPONG node for MIRRORED_REPEAT
-                math = mh.node_tree.nodes.new('ShaderNodeMath')
-                math.location = x - 140, y + 30 - i*200
-                math.operation = 'PINGPONG'
-                math.inputs[1].default_value = 1
-                mh.node_tree.links.new(socket, math.outputs[0])
-                socket = math.inputs[0]
+    
+    @staticmethod
+    def loadPBRMetallicRoughness(gltf, pymaterial, blender_material):
+        if pymaterial.pbr_metallic_roughness.base_color_texture: # base color texture is albedo
+            pytexture = gltf.data.textures[pymaterial.pbr_metallic_roughness.base_color_texture.index]
+            image = Textures.loadImage(gltf, pytexture, "BASE COLOR")
+            blender_material.msfs_albedo_texture = image
+        if pymaterial.pbr_metallic_roughness.metallic_roughness_texture:
+            pytexture = gltf.data.textures[pymaterial.pbr_metallic_roughness.metallic_roughness_texture.index]
+            image = Textures.loadImage(gltf, pytexture, "METALLIC ROUGHNESS")
+            blender_material.msfs_metallic_texture = image
+
+    @staticmethod
+    def loadDetailMap(gltf, pymaterial, blender_material):
+        detail_map_properties = pymaterial.extensions["ASOBO_material_detail_map"]
+        if "UVScale" in detail_map_properties:
+            blender_material.msfs_detail_uv_scale = detail_map_properties["UVScale"]
+        if "UVOffset" in detail_map_properties:
+            blender_material.msfs_detail_uv_offset_x = detail_map_properties["UVOffset"][0]
+            blender_material.msfs_detail_uv_offset_y = detail_map_properties["UVOffset"][1]
+        if "blendThreshold" in detail_map_properties:
+            blender_material.msfs_blend_threshold = detail_map_properties["blendThreshold"]
+        if "detailColorTexture" in detail_map_properties:
+            pytexture = gltf.data.textures[detail_map_properties["detailColorTexture"]["index"]]
+            image = Textures.loadImage(gltf, pytexture, "DETAIL COLOR")
+            blender_material.msfs_detail_albedo_texture = image
+        if "detailNormalTexture" in detail_map_properties:
+            pytexture = gltf.data.textures[detail_map_properties["detailNormalTexture"]["index"]]
+            image = Textures.loadImage(gltf, pytexture, "NORMALMAP")
+            blender_material.msfs_detail_normal_texture = image
+            if "scale" in detail_map_properties["detailNormalTexture"]:
+                blender_material.msfs_detail_normal_scale = detail_map_properties["detailNormalTexture"]["scale"]
+        if "detailMetalRoughAOTexture" in detail_map_properties:
+            pytexture = gltf.data.textures[detail_map_properties["detailMetalRoughAOTexture"]["index"]]
+            image = Textures.loadImage(gltf, pytexture, "METALLIC ROUGHNESS")
+            blender_material.msfs_detail_metallic_texture = image
+        if "blendMaskTexture" in detail_map_properties:
+            pytexture = gltf.data.textures[detail_map_properties["blendMaskTexture"]["index"]]
+            image = Textures.loadImage(gltf, pytexture, "BLEND MASK")
+            blender_material.msfs_blend_mask_texture = image
+
+    @staticmethod
+    def loadDecalBlendFactors(gltf, pymaterial, blender_material):
+        decal_blend_factors = pymaterial.extensions["ASOBO_material_blend_gbuffer"]
+        if "baseColorBlendFactor" in decal_blend_factors:
+            if blender_material.msfs_material_type == "msfs_geo_decal":
+                blender_material.msfs_geo_decal_blend_factor_color = decal_blend_factors["baseColorBlendFactor"]
             else:
-                # Pass-through CLAMP since the tex_img node is set to EXTEND
-                pass
-            if i == 0:
-                u_socket = socket
+                blender_material.msfs_decal_blend_factor_color = decal_blend_factors["baseColorBlendFactor"]
+        if "metallicBlendFactor" in decal_blend_factors:
+            if blender_material.msfs_material_type == "msfs_geo_decal":
+                blender_material.msfs_geo_decal_blend_factor_metal = decal_blend_factors["metallicBlendFactor"]
             else:
-                v_socket = socket
-        x -= 200
+                blender_material.msfs_decal_blend_factor_metal = decal_blend_factors["metallicBlendFactor"]
+        if "roughnessBlendFactor" in decal_blend_factors:
+            if blender_material.msfs_material_type == "msfs_geo_decal":
+                blender_material.msfs_geo_decal_blend_factor_roughness = decal_blend_factors["roughnessBlendFactor"]
+            else:
+                blender_material.msfs_decal_blend_factor_roughness = decal_blend_factors["roughnessBlendFactor"]
+        if "normalBlendFactor" in decal_blend_factors:
+            if blender_material.msfs_material_type == "msfs_geo_decal":
+                blender_material.msfs_geo_decal_blend_factor_normal = decal_blend_factors["normalBlendFactor"]
+            else:
+                blender_material.msfs_decal_blend_factor_normal = decal_blend_factors["normalBlendFactor"]
+        if "emissiveBlendFactor" in decal_blend_factors:
+            if blender_material.msfs_material_type == "msfs_geo_decal":
+                blender_material.msfs_geo_decal_blend_factor_melt_sys = decal_blend_factors["emissiveBlendFactor"] # emissive for geo decals is melt sys
+            else:
+                blender_material.msfs_decal_blend_factor_emissive = decal_blend_factors["emissiveBlendFactor"]
+        if "occlusionBlendFactor" in decal_blend_factors:
+            if blender_material.msfs_material_type == "msfs_geo_decal":
+                blender_material.msfs_geo_decal_blend_factor_blast_sys = decal_blend_factors["occlusionBlendFactor"] # occlusion for geo decals is blast sys
+            else:
+                blender_material.msfs_decal_blend_factor_occlusion = decal_blend_factors["occlusionBlendFactor"]
 
-        # Separate XYZ
-        sep_uv = mh.node_tree.nodes.new('ShaderNodeSeparateXYZ')
-        sep_uv.location = x - 140, y - 100
-        mh.node_tree.links.new(u_socket, sep_uv.outputs[0])
-        mh.node_tree.links.new(v_socket, sep_uv.outputs[1])
-        uv_socket = sep_uv.inputs[0]
-        x -= 200
+    @staticmethod
+    def loadClearcoatTexture(gltf, pymaterial, blender_material):
+        pytexture = gltf.data.textures[pymaterial.extensions["ASOBO_material_clear_coat"]["dirtTexture"]["index"]]
+        image = Textures.loadImage(gltf, pytexture, "DIRT")
+        blender_material.msfs_normal_texture = image
 
-        needs_uv_map = True
-
-    # UV Transform (for KHR_texture_transform)
-    needs_tex_transform = 'KHR_texture_transform' in (tex_info.extensions or {})
-    if needs_tex_transform:
-        mapping = mh.node_tree.nodes.new('ShaderNodeMapping')
-        mapping.location = x - 160, y + 30
-        mapping.vector_type = 'POINT'
-        # Outputs
-        mh.node_tree.links.new(uv_socket, mapping.outputs[0])
-        # Inputs
-        uv_socket = mapping.inputs[0]
-
-        transform = tex_info.extensions['KHR_texture_transform']
-        transform = texture_transform_gltf_to_blender(transform)
-        mapping.inputs['Location'].default_value[0] = transform['offset'][0]
-        mapping.inputs['Location'].default_value[1] = transform['offset'][1]
-        mapping.inputs['Rotation'].default_value[2] = transform['rotation']
-        mapping.inputs['Scale'].default_value[0] = transform['scale'][0]
-        mapping.inputs['Scale'].default_value[1] = transform['scale'][1]
-
-        x -= 260
-        needs_uv_map = True
-
-    # UV Map
-    uv_idx = tex_info.tex_coord or 0
-    try:
-        uv_idx = tex_info.extensions['KHR_texture_transform']['texCoord']
-    except Exception:
-        pass
-    if uv_idx != 0 or needs_uv_map:
-        uv_map = mh.node_tree.nodes.new('ShaderNodeUVMap')
-        uv_map.location = x - 160, y - 70
-        uv_map.uv_map = 'UVMap' if uv_idx == 0 else 'UVMap.%03d' % uv_idx
-        # Outputs
-        mh.node_tree.links.new(uv_socket, uv_map.outputs[0])
-
-def set_filtering(tex_img, pysampler):
-    """Set the filtering/interpolation on an Image Texture from the glTf sampler."""
-    minf = pysampler.min_filter
-    magf = pysampler.mag_filter
-
-    # Ignore mipmapping
-    if minf in [TextureFilter.NearestMipmapNearest, TextureFilter.NearestMipmapLinear]:
-        minf = TextureFilter.Nearest
-    elif minf in [TextureFilter.LinearMipmapNearest, TextureFilter.LinearMipmapLinear]:
-        minf = TextureFilter.Linear
-
-    # If both are nearest or the only specified one was nearest, use nearest.
-    if (minf, magf) in [
-        (TextureFilter.Nearest, TextureFilter.Nearest),
-        (TextureFilter.Nearest, None),
-        (None, TextureFilter.Nearest),
-    ]:
-        tex_img.interpolation = 'Closest'
-    else:
-        tex_img.interpolation = 'Linear'
+    @staticmethod
+    def loadBehindWindowMapTexture(gltf, pymaterial, blender_material):
+        pytexture = gltf.data.textures[pymaterial.extensions["ASOBO_material_parallax_window"]["behindWindowMapTexture"]["index"]]
+        image = Textures.loadImage(gltf, pytexture, "DETAIL COLOR")
+        blender_material.msfs_normal_texture = image

@@ -20,6 +20,7 @@ from .gltf2_blender_mesh import BlenderMesh
 from .gltf2_blender_camera import BlenderCamera
 from .gltf2_blender_light import BlenderLight
 from .gltf2_blender_vnode import VNode
+from .gltf2_blender_material import BlenderMaterial
 
 class BlenderNode():
     """Blender Node."""
@@ -186,7 +187,8 @@ class BlenderNode():
                 # if is_skinned_mesh:
                 #     obj.location = parent_vnode.editbone_trans
 
-        bpy.data.scenes[gltf.blender_scene].collection.objects.link(obj)
+        if not bpy.data.scenes[gltf.blender_scene].collection in obj.users_collection: # mesh nodes are already entered into the collection, and if they get added twice an error occurs
+            bpy.data.scenes[gltf.blender_scene].collection.objects.link(obj)
 
         return obj
 
@@ -290,6 +292,15 @@ class BlenderNode():
 
         name = vnode.name or mesh.name
         obj = bpy.data.objects.new(name, mesh)
+        bpy.data.scenes[gltf.blender_scene].collection.objects.link(obj)
+        # Create materials
+        # First select the object
+        original_active = bpy.context.view_layer.objects.active
+        bpy.context.view_layer.objects.active = obj
+        BlenderMaterial.loadMaterials(gltf, pynode.mesh)
+
+        # Set active object back to the original selection
+        bpy.context.view_layer.objects.active = original_active
 
         if pymesh.shapekey_names:
             BlenderNode.set_morph_weights(gltf, pynode, obj)
