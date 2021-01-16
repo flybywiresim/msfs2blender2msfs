@@ -222,7 +222,10 @@ class BlenderGlTF():
             texconv_path = None
             texture_out_dir = None
 
-        result = BlenderGlTF.convert_images(gltf, texture_in_dir, common_texture_in_dir, texconv_path, texture_out_dir, report)
+        if gltf.data.images is not None:
+            result = BlenderGlTF.convert_images(gltf, texture_in_dir, common_texture_in_dir, texconv_path, texture_out_dir, report)
+        else:
+            result = None
 
         print('done doing tex things ' + str(result))
 
