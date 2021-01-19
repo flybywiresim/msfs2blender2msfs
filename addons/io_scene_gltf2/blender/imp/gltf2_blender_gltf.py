@@ -17,6 +17,8 @@ from mathutils import Vector, Quaternion, Matrix
 import subprocess
 import pathlib
 import os
+import configparser
+import codecs
 from .gltf2_blender_scene import BlenderScene
 
 
@@ -254,6 +256,12 @@ class BlenderGlTF():
                     for root, file in common_files:
                         if file == image.uri:
                             if "Community" in root: # community textures always override official files
+                                config_file = pathlib.Path(root).parent / "aircraft.cfg"
+                                if config_file.exists():
+                                    config = configparser.ConfigParser(strict = False)
+                                    config.read_file(codecs.open(config_file, "r", "utf-8"))
+                                    if "VARIATION" in config.sections(): # this is a livery, skip the texture
+                                        continue # something to note - some liveries could be misconfigured and not have a variation section, in which case it would be treated as a regular aircraft, causing an issue. at some point this should probably be fixed, but as the circumstances are rare it's fine
                                 dds_file = pathlib.Path(root) / file
                                 break
                             else:
