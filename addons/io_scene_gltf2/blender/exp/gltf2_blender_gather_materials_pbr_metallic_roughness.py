@@ -59,6 +59,10 @@ def __gather_base_color_factor(blender_material, export_settings):
     if not base_color_socket.is_linked:
         return list(base_color_socket.default_value)
 
+    for link in base_color_socket.links:
+        if link.from_node.name == "albedo_tint":
+            return list(link.from_node.outputs["Color"].default_value)
+            
     texture_node = __get_tex_from_socket(base_color_socket)
     if texture_node is None:
         return None
@@ -127,8 +131,12 @@ def __gather_metallic_factor(blender_material, export_settings):
     metallic_socket = gltf2_blender_get.get_socket_or_texture_slot(blender_material, "Metallic")
     if metallic_socket is None:
         metallic_socket = gltf2_blender_get.get_socket_or_texture_slot_old(blender_material, "MetallicFactor")
-    if isinstance(metallic_socket, bpy.types.NodeSocket) and not metallic_socket.is_linked:
-        return metallic_socket.default_value
+    if isinstance(metallic_socket, bpy.types.NodeSocket):
+        if len(metallic_socket.links) == 0:
+            return metallic_socket.default_value
+        for link in metallic_socket.links:
+            if link.from_node.name == "metallic_scale":
+                return link.from_node.outputs["Value"].default_value
     return None
 
 
@@ -161,8 +169,12 @@ def __gather_roughness_factor(blender_material, export_settings):
     roughness_socket = gltf2_blender_get.get_socket_or_texture_slot(blender_material, "Roughness")
     if roughness_socket is None:
         roughness_socket = gltf2_blender_get.get_socket_or_texture_slot_old(blender_material, "RoughnessFactor")
-    if isinstance(roughness_socket, bpy.types.NodeSocket) and not roughness_socket.is_linked:
-        return roughness_socket.default_value
+    if isinstance(roughness_socket, bpy.types.NodeSocket):
+        if len(roughness_socket.links) == 0:
+            return roughness_socket.default_value
+        for link in roughness_socket.links:
+            if link.from_node.name == "roughness_scale":
+                return link.from_node.outputs["Value"].default_value
     return None
 
 def __has_image_node_from_socket(socket):

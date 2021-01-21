@@ -289,7 +289,7 @@ def switch_msfs_material(self,context):
 
         mat.msfs_show_tint = True
         mat.msfs_show_sss_color = False
-        mat.msfs_show_alpha_mix = False
+        mat.msfs_show_alpha_mix = True
 
         mat.msfs_show_glass_parameters = False
         mat.msfs_show_decal_parameters = False
@@ -643,7 +643,7 @@ def switch_msfs_material(self,context):
 
         mat.msfs_show_tint = True
         mat.msfs_show_sss_color = False
-        mat.msfs_show_alpha_mix = False
+        mat.msfs_show_alpha_mix = True
 
         mat.msfs_show_glass_parameters = False
         mat.msfs_show_decal_parameters = False
@@ -731,6 +731,7 @@ def match_albedo(self, context):
 
     bsdf_node = nodes.get("bsdf")
     albedo = nodes.get("albedo")
+    albedo_tint = nodes.get("albedo_tint")
     albedo_tint_mix = nodes.get("albedo_tint_mix")
     albedo_detail_mix = nodes.get("albedo_detail_mix")
 
@@ -738,25 +739,34 @@ def match_albedo(self, context):
         nodes["albedo"].image = mat.msfs_albedo_texture
 
         if mat.msfs_albedo_texture != None:
-            if mat.msfs_detail_albedo_texture != None: # if there is no detail albedo texture, we don't need to put the albedo_detail_mix in to the base color
+            if mat.msfs_detail_albedo_texture != None: # if there is a detail albedo texture, we need to put the albedo_detail_mix in to the base color, as well as connect albedo_tint to albedo_detail_mix
                 # Create the link:
                 if albedo_tint_mix != None:
                     links.new(albedo.outputs["Color"], albedo_tint_mix.inputs["Color2"])
                 if albedo_detail_mix != None:
                     links.new(albedo_detail_mix.outputs["Color"], bsdf_node.inputs["Base Color"])
             else:
+                if (albedo_tint != None and albedo_tint_mix != None):
+                    for link in albedo_tint.outputs["Color"].links: # remove link from albedo_tint and link albedo_tint_mix to the base color
+                        if link.to_socket == bsdf_node.inputs["Base Color"]:
+                            links.remove(link)
+                            links.new(albedo_tint.outputs["Color"], albedo_tint_mix.inputs["Color1"])
+                            break
                 # Create the link:
                 if albedo_tint_mix != None:
                     links.new(albedo.outputs["Color"], albedo_tint_mix.inputs["Color2"])
                     links.new(albedo_tint_mix.outputs["Color"], bsdf_node.inputs["Base Color"])
         else:
+            if (albedo_tint != None and albedo_tint_mix != None):
+                for link in albedo_tint_mix.outputs["Color"].links: # remove link from albedo_tint_mix and link albedo_tint to the base color
+                    if link.to_socket == bsdf_node.inputs["Base Color"]:
+                        links.remove(link)
+                        links.new(albedo_tint.outputs["Color"], bsdf_node.inputs["Base Color"])
+                        break
             #unlink the separator:
             if albedo_tint_mix != None:
                 l = albedo_tint_mix.inputs["Color2"].links[0]
-                links.remove(l)                
-            if bsdf_node != None:
-                l = bsdf_node.inputs["Base Color"].links[0]
-                links.remove(l)                
+                links.remove(l)          
 
 def match_metallic(self, context):
     mat = context.active_object.active_material
@@ -778,18 +788,18 @@ def match_metallic(self, context):
                 if metallic_detail_mix != None:
                     links.new(metallic.outputs["Color"], metallic_detail_mix.inputs["Color1"])
                 #link to bsdf
-                if (bsdf_node != None and metallic_sep_node != None):
+                if (metallic_sep_node != None):
                     links.new(metallic_sep_node.outputs[1], bsdf_node.inputs["Roughness"])
                     links.new(metallic_sep_node.outputs[2], bsdf_node.inputs["Metallic"])
             else:
                 #link to bsdf
-                if (bsdf_node != None and metallic_sep_node != None):
+                if (metallic_sep_node != None):
                     links.new(metallic.outputs["Color"], metallic_sep_node.inputs["Image"])
                     links.new(metallic_sep_node.outputs[1], bsdf_node.inputs["Roughness"])
                     links.new(metallic_sep_node.outputs[2], bsdf_node.inputs["Metallic"])
         else:
             #unlink the separator:
-            if (bsdf_node != None and metallic_sep_node != None):
+            if (metallic_sep_node != None):
                 l = bsdf_node.inputs["Roughness"].links[0]
                 links.remove(l)                
                 l = bsdf_node.inputs["Metallic"].links[0]
@@ -813,14 +823,14 @@ def match_normal(self, context):
             if mat.msfs_detail_normal_texture != None: # if there is no detail normal texture, we don't need to put the normal_detail_mix in to the normal map node
                 if normal_detail_mix != None:
                     links.new(normal.outputs["Color"], normal_detail_mix.inputs["Color1"])
-                if (bsdf_node != None and normal_map_node != None):
+                if (normal_map_node != None):
                     links.new(normal_map_node.outputs["Normal"], bsdf_node.inputs["Normal"])
             else:
-                if (bsdf_node != None and normal_map_node != None):
+                if (normal_map_node != None):
                     links.new(normal.outputs["Color"], normal_map_node.inputs["Color"])
                     links.new(normal_map_node.outputs["Normal"], bsdf_node.inputs["Normal"])
         else:
-            if (bsdf_node != None and normal_map_node != None):
+            if (normal_map_node != None):
                 l = bsdf_node.inputs["Normal"].links[0]
                 links.remove(l)                
 
@@ -832,20 +842,30 @@ def match_emissive(self, context):
     #Try to generate the links:
     bsdf_node = nodes.get("bsdf")
     emissive = nodes.get("emissive")
+    emissive_tint = nodes.get("emissive_tint")
     emissive_tint_mix = nodes.get("emissive_tint_mix")
 
     if emissive != None:
         nodes["emissive"].image = mat.msfs_emissive_texture
 
-        if mat.msfs_emissive_texture != "":
+        if mat.msfs_emissive_texture != None:
+            if (emissive_tint != None and emissive_tint_mix != None):
+                for link in emissive_tint.outputs["Color"].links: # remove link from emissive_tint and link emissive_tint_mix to the emissive
+                    if link.to_socket == bsdf_node.inputs["Emission"]:
+                        links.remove(link)
+                        links.new(emissive_tint.outputs["Color"], emissive_tint_mix.inputs["Color1"])
+                        break
             #link to bsdf
-            if (bsdf_node != None and emissive_tint_mix != None):
+            if (emissive_tint_mix != None):
                 links.new(emissive_tint_mix.outputs["Color"], bsdf_node.inputs["Emission"])
         else:
-            #unlink the separator:
-            if (bsdf_node != None and emissive_tint_mix != None):
-                l = bsdf_node.inputs["Emission"].links[0]
-                links.remove(l)                
+            #unlink the separator:  
+            if (emissive_tint != None and emissive_tint_mix != None):
+                for link in emissive_tint_mix.outputs["Color"].links: # remove link from emissive_tint_mix and link emissive_tint to the emissive
+                    if link.to_socket == bsdf_node.inputs["Emission"]:
+                        links.remove(link)
+                        links.new(emissive_tint.outputs["Color"], bsdf_node.inputs["Emission"])
+                        break
 
 def match_detail_albedo(self, context):
     mat = context.active_object.active_material
@@ -862,22 +882,24 @@ def match_detail_albedo(self, context):
         nodes["detail_albedo"].image = mat.msfs_detail_albedo_texture
         
         if mat.msfs_detail_albedo_texture != None:
-            for link in albedo_tint_mix.outputs["Color"].links: # remove link from albedo_tint_mix and link albedo_detail_mix to the base color
-                if link.to_socket == bsdf_node.inputs["Base Color"]:
-                    links.remove(link)
-                    links.new(albedo_detail_mix.outputs["Color"], bsdf_node.inputs["Base Color"])
-                    break
+            if (albedo_tint_mix != None and albedo_detail_mix != None):
+                for link in albedo_tint_mix.outputs["Color"].links: # remove link from albedo_tint_mix and link albedo_detail_mix to the base color
+                    if link.to_socket == bsdf_node.inputs["Base Color"]:
+                        links.remove(link)
+                        links.new(albedo_detail_mix.outputs["Color"], bsdf_node.inputs["Base Color"])
+                        break
             # Create the link:
             if (detail_albedo != None and albedo_detail_mix != None):
                 links.new(detail_albedo.outputs["Color"], albedo_detail_mix.inputs["Color2"])
                 albedo_detail_mix.inputs[0].default_value = 0.5
         else:
             #unlink the separator:
-            for link in albedo_detail_mix.outputs["Color"].links: # remove link from albedo_detail_mix and link albedo_tint_mix to the base color
-                if link.to_socket == bsdf_node.inputs["Base Color"]:
-                    links.remove(link)
-                    links.new(albedo_tint_mix.outputs["Color"], bsdf_node.inputs["Base Color"])
-                    break
+            if (albedo_tint_mix != None and albedo_detail_mix != None):
+                for link in albedo_detail_mix.outputs["Color"].links: # remove link from albedo_detail_mix and link albedo_tint_mix to the base color
+                    if link.to_socket == bsdf_node.inputs["Base Color"]:
+                        links.remove(link)
+                        links.new(albedo_tint_mix.outputs["Color"], bsdf_node.inputs["Base Color"])
+                        break
 
             if (detail_albedo != None and albedo_detail_mix != None):
                 l = albedo_detail_mix.inputs["Color2"].links[0]
@@ -898,22 +920,24 @@ def match_detail_metallic(self, context):
         if mat.msfs_detail_metallic_texture != None:
             detail_metallic.image = mat.msfs_detail_metallic_texture
             detail_metallic.image.colorspace_settings.name = "Non-Color"
-            for link in metallic.outputs["Color"].links: # remove link from metallic and link metallic_detail_mix to metallic_sep_node
-                if link.to_socket == metallic_sep_node.inputs["Image"]:
-                    links.remove(link)
-                    links.new(metallic_detail_mix.outputs["Color"], metallic_sep_node.inputs["Image"])
-                    break
+            if (metallic != None and metallic_sep_node != None and metallic_detail_mix != None):
+                for link in metallic.outputs["Color"].links: # remove link from metallic and link metallic_detail_mix to metallic_sep_node
+                    if link.to_socket == metallic_sep_node.inputs["Image"]:
+                        links.remove(link)
+                        links.new(metallic_detail_mix.outputs["Color"], metallic_sep_node.inputs["Image"])
+                        break
             # Create the link:
             if (detail_metallic != None and metallic_detail_mix != None):
                 links.new(detail_metallic.outputs["Color"], metallic_detail_mix.inputs["Color2"])
                 metallic_detail_mix.inputs[0].default_value = 0.5
         else:
             #unlink the separator:
-            for link in metallic_detail_mix.outputs["Color"].links: # remove link from metallic_detail_mix and link metallic to metallic_sep_node
-                if link.to_socket == metallic_sep_node.inputs["Image"]:
-                    links.remove(link)
-                    links.new(metallic.outputs["Color"], metallic_sep_node.inputs["Image"])
-                    break
+            if (metallic != None and metallic_sep_node != None and metallic_detail_mix != None):
+                for link in metallic_detail_mix.outputs["Color"].links: # remove link from metallic_detail_mix and link metallic to metallic_sep_node
+                    if link.to_socket == metallic_sep_node.inputs["Image"]:
+                        links.remove(link)
+                        links.new(metallic.outputs["Color"], metallic_sep_node.inputs["Image"])
+                        break
 
             if (detail_metallic != None and metallic_detail_mix != None):
                 l = metallic_detail_mix.inputs["Color2"].links[0]
@@ -934,22 +958,24 @@ def match_detail_normal(self, context):
         if mat.msfs_detail_normal_texture != None:
             detail_normal.image = mat.msfs_detail_normal_texture
             detail_normal.image.colorspace_settings.name = "Non-Color"
-            for link in normal.outputs["Color"].links: # remove link from normal and link normal_detail_mix to normal_map_node
-                if link.to_socket == normal_map_node.inputs["Color"]:
-                    links.remove(link)
-                    links.new(normal_detail_mix.outputs["Color"], normal_map_node.inputs["Color"])
-                    break
+            if (normal != None and normal_map_node != None and normal_detail_mix != None):
+                for link in normal.outputs["Color"].links: # remove link from normal and link normal_detail_mix to normal_map_node
+                    if link.to_socket == normal_map_node.inputs["Color"]:
+                        links.remove(link)
+                        links.new(normal_detail_mix.outputs["Color"], normal_map_node.inputs["Color"])
+                        break
             # Create the link:
             if (detail_normal != None and normal_detail_mix != None):
                 links.new(detail_normal.outputs["Color"], normal_detail_mix.inputs["Color2"])
                 normal_detail_mix.inputs[0].default_value = 0.5
         else:
             #unlink the separator:
-            for link in normal_detail_mix.outputs["Color"].links: # remove link from normal_detail_mix and link normal to normal_map_node
-                if link.to_socket == normal_map_node.inputs["Color"]:
-                    links.remove(link)
-                    links.new(normal.outputs["Color"], normal_map_node.inputs["Color"])
-                    break
+            if (normal != None and normal_map_node != None and normal_detail_mix != None):
+                for link in normal_detail_mix.outputs["Color"].links: # remove link from normal_detail_mix and link normal to normal_map_node
+                    if link.to_socket == normal_map_node.inputs["Color"]:
+                        links.remove(link)
+                        links.new(normal.outputs["Color"], normal_map_node.inputs["Color"])
+                        break
                 
             if (detail_normal != None and normal_detail_mix != None):
                 l = normal_detail_mix.inputs["Color2"].links[0]
@@ -1022,7 +1048,7 @@ def match_clearcoat(self,context):
     if clearcoat != None:
         mat.node_tree.nodes["clearcoat"].image = mat.msfs_clearcoat_texture
         mat.node_tree.nodes["clearcoat"].image.colorspace_settings.name = "Non-Color"
-        if (clearcoat_sep != None and bsdf_node != None):
+        if (clearcoat_sep != None):
             if mat.msfs_clearcoat_texture != None:
                 links.new(clearcoat_sep.outputs["R"],bsdf_node.inputs["Clearcoat"])
                 links.new(clearcoat_sep.outputs["G"],bsdf_node.inputs["Clearcoat Roughness"])
@@ -1077,15 +1103,17 @@ def update_color_albedo_mix(self, context):
         mat.node_tree.nodes["bsdf"].inputs.get("Base Color").default_value[0] = mat.msfs_color_albedo_mix[0]
         mat.node_tree.nodes["bsdf"].inputs.get("Base Color").default_value[1] = mat.msfs_color_albedo_mix[1]
         mat.node_tree.nodes["bsdf"].inputs.get("Base Color").default_value[2] = mat.msfs_color_albedo_mix[2]
-        mat.node_tree.nodes.get("albedo_tint").outputs[0].default_value[0] = mat.msfs_color_albedo_mix[0]
-        mat.node_tree.nodes.get("albedo_tint").outputs[0].default_value[1] = mat.msfs_color_albedo_mix[1]
-        mat.node_tree.nodes.get("albedo_tint").outputs[0].default_value[2] = mat.msfs_color_albedo_mix[2]
+        mat.node_tree.nodes["albedo_tint"].outputs[0].default_value[0] = mat.msfs_color_albedo_mix[0]
+        mat.node_tree.nodes["albedo_tint"].outputs[0].default_value[1] = mat.msfs_color_albedo_mix[1]
+        mat.node_tree.nodes["albedo_tint"].outputs[0].default_value[2] = mat.msfs_color_albedo_mix[2]
+        mat.node_tree.nodes["albedo_tint"].outputs[0].default_value[3] = mat.msfs_color_alpha_mix
 
 def update_color_alpha_mix(self, context):
     mat = context.active_object.active_material
-    if mat.node_tree.nodes.get("bsdf", None) != None and mat.msfs_material_type not in ["msfs_invisible", "msfs_env_occluder"]:
+    if mat.node_tree.nodes.get("bsdf", None) != None:
         mat.node_tree.nodes["bsdf"].inputs.get("Base Color").default_value[3] = mat.msfs_color_alpha_mix
         mat.node_tree.nodes["alpha_multiply"].inputs[1].default_value = mat.msfs_color_alpha_mix
+        mat.node_tree.nodes["albedo_tint"].outputs[0].default_value[3] = mat.msfs_color_alpha_mix
 
 def update_color_emissive_mix(self, context):
     mat = context.active_object.active_material
@@ -1111,6 +1139,22 @@ def update_color_sss(self, context):
 def update_double_sided(self, context):
     mat = context.active_object.active_material
     mat.use_backface_culling = not mat.msfs_double_sided
+
+def update_roughness_scale(self, context):
+    mat = context.active_object.active_material
+    nodes = mat.node_tree.nodes
+
+    roughness_scale = nodes.get("roughness_scale", None)
+    if roughness_scale != None:
+        roughness_scale.outputs["Value"].default_value = mat.msfs_roughness_scale
+
+def update_metallic_scale(self, context):
+    mat = context.active_object.active_material
+    nodes = mat.node_tree.nodes
+
+    metallic_scale = nodes.get("metallic_scale", None)
+    if metallic_scale != None:
+        metallic_scale.outputs["Value"].default_value = mat.msfs_metallic_scale
 
 def update_alpha_cutoff(self,context):
     mat = context.active_object.active_material
@@ -1277,8 +1321,8 @@ Material.msfs_uv_clamp_x = bpy.props.BoolProperty(name="X",default=False)
 Material.msfs_uv_clamp_y = bpy.props.BoolProperty(name="Y",default=False)
 
 #Material parameters
-Material.msfs_roughness_scale = bpy.props.FloatProperty(name="Roughness scale",min=0,max=1,default=1)
-Material.msfs_metallic_scale = bpy.props.FloatProperty(name="Metallic scale",min=0,max=1,default=1)
+Material.msfs_roughness_scale = bpy.props.FloatProperty(name="Roughness scale",min=0,max=1,default=1,update=update_roughness_scale)
+Material.msfs_metallic_scale = bpy.props.FloatProperty(name="Metallic scale",min=0,max=1,default=1,update=update_metallic_scale)
 Material.msfs_normal_scale = bpy.props.FloatProperty(name="Normal scale",min=0,default=1,update=update_normal_scale)
 Material.msfs_alpha_cutoff = bpy.props.FloatProperty(name="Alpha cutoff",min=0,max=1,default=0.1,update=update_alpha_cutoff)
 Material.msfs_detail_uv_scale = bpy.props.FloatProperty(name="Detail UV scale",min=0,default=1,update=update_detail_uv_scale)

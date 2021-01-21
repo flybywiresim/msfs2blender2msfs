@@ -26,6 +26,7 @@ from io_scene_gltf2.blender.exp import gltf2_blender_search_node_tree
 from io_scene_gltf2.blender.exp import gltf2_blender_gather_materials_pbr_metallic_roughness
 from ..com.gltf2_blender_extras import generate_extras
 from io_scene_gltf2.blender.exp import gltf2_blender_get
+from io_scene_gltf2.blender.exp.gltf2_blender_gather_texture_info import gather_texture_info
 from io_scene_gltf2.io.exp.gltf2_io_user_extensions import export_user_extensions
 
 
@@ -111,12 +112,12 @@ def __gather_emissive_factor(blender_material, export_settings):
     if emissive_socket is None:
         emissive_socket = gltf2_blender_get.get_socket_or_texture_slot_old(blender_material, "EmissiveFactor")
     if isinstance(emissive_socket, bpy.types.NodeSocket):
-        if emissive_socket.is_linked:
-            # In glTF, the default emissiveFactor is all zeros, so if an emission texture is connected,
-            # we have to manually set it to all ones.
-            return [1.0, 1.0, 1.0]
-        else:
-            return list(emissive_socket.default_value)[0:3]
+        # if emissive_socket.is_linked:
+        #     # In glTF, the default emissiveFactor is all zeros, so if an emission texture is connected,
+        #     # we have to manually set it to all ones.
+        #     return [1.0, 1.0, 1.0]
+        # else:
+        return list(emissive_socket.default_value)[0:3]
     return None
 
 
@@ -130,10 +131,138 @@ def __gather_emissive_texture(blender_material, export_settings):
 def __gather_extensions(blender_material, export_settings):
     extensions = {}
 
-    if 'gltf_extensions' in blender_material:
-        extensions_dict = json.loads(blender_material['gltf_extensions'])
-        for ex in extensions_dict:
-            extensions[ex] = Extension(ex, extensions_dict[ex], False)
+    if blender_material.msfs_material_type == "msfs_anisotropic":
+        extensions["ASOBO_material_anisotropic"] = {}
+    elif blender_material.msfs_material_type == "msfs_sss" or blender_material.msfs_material_type == "msfs_hair": # sss and hair are basically the same
+        extensions["ASOBO_material_SSS"] = {
+            "SSSColor": [blender_material.msfs_color_sss[0],blender_material.msfs_color_sss[1],blender_material.msfs_color_sss[2],blender_material.msfs_color_sss[3]]
+        }
+    elif blender_material.msfs_material_type == "msfs_glass":
+        if blender_material.msfs_glass_reflection_mask_factor != 0.0 or blender_material.msfs_glass_deformation_factor != 0.0:
+            extensions["ASOBO_material_kitty_glass"] = {
+                "glassReflectionMaskFactor": blender_material.msfs_glass_reflection_mask_factor,
+                "glassDeformationFactor": blender_material.msfs_glass_deformation_factor
+            }
+        else:
+            extensions["ASOBO_material_glass"] = {}
+    elif blender_material.msfs_material_type == "msfs_clearcoat":
+        extensions["ASOBO_material_clear_coat"] = {"dirtTexture" : blender_material.msfs_clearcoat_texture}
+    elif blender_material.msfs_material_type == "msfs_env_occluder":
+        extensions["ASOBO_material_environment_occluder"] = {}
+    elif blender_material.msfs_material_type == "msfs_fake_terrain":
+        extensions["ASOBO_material_fake_terrain"] = {}
+    elif blender_material.msfs_material_type == "msfs_fresnel":
+        extensions["ASOBO_material_fresnel_fade"] = {
+            "fresnelFactor": blender_material.msfs_fresnel_factor,
+            "fresnelOpacityOffset": blender_material.msfs_fresnel_opacity_bias
+            }
+    elif blender_material.msfs_material_type == "msfs_parallax":
+        extension = {
+            "parallaxScale": blender_material.msfs_parallax_scale,
+            "roomSizeXScale": blender_material.msfs_parallax_room_size_x,
+            "roomSizeYScale": blender_material.msfs_parallax_room_size_y,
+            "roomNumberXY": blender_material.msfs_parallax_room_number,
+            "corridor": blender_material.msfs_parallax_corridor
+        }
+
+        if blender_material.msfs_behind_glass_texture != None:
+            node = nodes.get("albedo_detail_mix")
+            if node != None:
+                inputs = (node.inputs["Color2"],)
+            behind_glass_texture = gather_texture_info(inputs, export_settings)
+            if behind_glass_texture != None:
+                extension["behindWindowMapTexture"] = behind_glass_texture
+        extensions["ASOBO_material_parallax_window"] = extension
+    elif blender_material.msfs_material_type == "msfs_invisible":
+        extensions["ASOBO_material_invisible"] = {}
+
+    # other extensions
+    if blender_material.msfs_show_blend_mode == True:
+        if blender_material.msfs_blend_mode == 'DITHER':
+            extensions["ASOBO_material_alphamode_dither"] = {}
+
+    if (blender_material.msfs_show_road_material == True or blender_material.msfs_show_collision_material == True):
+        if (blender_material.msfs_road_material == True or blender_material.msfs_collision_material == True):
+            tags = []
+            if blender_material.msfs_road_material == True:
+                tags.append("Road")
+            if blender_material.msfs_collision_material == True:
+                tags.append("Collision")
+
+            extensions["ASOBO_tags"] = {"tags" : tags}
+    
+    if blender_material.msfs_show_day_night_cycle == True:
+        if blender_material.msfs_day_night_cycle == True:
+            extensions["ASOBO_material_day_night_switch"] = {}
+
+    if blender_material.msfs_show_draworder == True:
+        if blender_material.msfs_draw_order > 0:
+            extensions["ASOBO_material_draw_order"] = {"drawOrderOffset": blender_material.msfs_draw_order}
+
+    if blender_material.msfs_show_no_cast_shadow == True:
+        if blender_material.msfs_no_cast_shadow == True:
+            extensions["ASOBO_material_shadow_options"] = {"noCastShadow": blender_material.msfs_no_cast_shadow}
+
+    if (blender_material.msfs_show_ao_use_uv2 == True or blender_material.msfs_show_uv_clamp == True):
+        if (blender_material.msfs_ao_use_uv2 == True or blender_material.msfs_uv_clamp_x == True or blender_material.msfs_uv_clamp_y == True):
+            extensions["ASOBO_material_UV_options"] = {
+                "AOUseUV2": blender_material.msfs_ao_use_uv2,
+                "clampUVX": blender_material.msfs_uv_clamp_x,
+                "clampUVY": blender_material.msfs_uv_clamp_y
+            }
+
+    if (blender_material.msfs_show_detail_albedo == True or blender_material.msfs_show_detail_metallic == True or blender_material.msfs_show_detail_normal == True):
+
+        nodes = blender_material.node_tree.nodes
+
+        detail_extension = {}
+        if blender_material.msfs_detail_albedo_texture != None:
+            node = nodes.get("albedo_detail_mix")
+            if node != None:
+                inputs = (node.inputs["Color2"],)
+            albedo_detail_texture = gather_texture_info(inputs, export_settings)
+            if albedo_detail_texture != None:
+                detail_extension["detailColorTexture"] = albedo_detail_texture
+        if blender_material.msfs_detail_metallic_texture != None:
+            node = nodes.get("metallic_detail_mix")
+            if node != None:
+                inputs = (node.inputs["Color2"],)
+            metallic_detail_texture = gather_texture_info(inputs, export_settings)
+            if metallic_detail_texture != None:
+                detail_extension["detailMetalRoughAOTexture"] = metallic_detail_texture
+        if blender_material.msfs_detail_normal_texture != None:
+            node = nodes.get("normal_detail_mix")
+            if node != None:
+                inputs = (node.inputs["Color2"],)
+            normal_detail_texture = gather_texture_info(inputs, export_settings)
+            if normal_detail_texture != None:
+                detail_extension["detailNormalTexture"] = normal_detail_texture
+        if len(detail_extension) > 0:
+            detail_extension["UVScale"] = blender_material.msfs_detail_uv_scale
+            detail_extension["UVOffset"] = (blender_material.msfs_detail_uv_offset_x,blender_material.msfs_detail_uv_offset_y)
+            detail_extension["blendTreshold"] = blender_material.msfs_blend_threshold
+
+            extensions["ASOBO_material_detail_map"] = detail_extension
+
+    if blender_material.msfs_material_type == "msfs_decal":
+        extensions["ASOBO_material_blend_gbuffer"] = {
+            "baseColorBlendFactor": blender_material.msfs_decal_blend_factor_color,
+            "metallicBlendFactor": blender_material.msfs_decal_blend_factor_metal,
+            "roughnessBlendFactor": blender_material.msfs_decal_blend_factor_roughness,
+            "normalBlendFactor": blender_material.msfs_decal_blend_factor_normal,
+            "emissiveBlendFactor": blender_material.msfs_decal_blend_factor_emissive,
+            "occlusionBlendFactor": blender_material.msfs_decal_blend_factor_occlusion
+        }
+
+    if blender_material.msfs_material_type == "msfs_geo_decal":
+        extensions["ASOBO_material_blend_gbuffer"] = {
+            "baseColorBlendFactor": blender_material.msfs_decal_blend_factor_color,
+            "metallicBlendFactor": blender_material.msfs_decal_blend_factor_metal,
+            "roughnessBlendFactor": blender_material.msfs_decal_blend_factor_roughness,
+            "normalBlendFactor": blender_material.msfs_decal_blend_factor_normal,
+            "emissiveBlendFactor": blender_material.msfs_decal_blend_factor_emissive,
+            "occlusionBlendFactor": blender_material.msfs_decal_blend_factor_occlusion
+        }
 
     return extensions
 
@@ -156,10 +285,12 @@ def __gather_extensions(blender_material, export_settings):
 def __gather_extras(blender_material, export_settings):
     extras = {}
 
-    if 'gltf_extras' in blender_material:
-        extras_dict = json.loads(blender_material['gltf_extras'])
-        for ex in extras_dict:
-            extras[ex] = extras_dict[ex]
+    if blender_material.msfs_material_type == "msfs_windshield":
+        extras["ASOBO_material_code"] = "Windshield"
+    elif blender_material.msfs_material_type == "msfs_porthole":
+        extras["ASOBO_material_code"] = "Porthole"
+    elif blender_material.msfs_material_type == "msfs_geo_decal":
+        extras["ASOBO_material_code"] = "GeoDecalFrosted"
 
     return extras
     # if export_settings['gltf_extras']:

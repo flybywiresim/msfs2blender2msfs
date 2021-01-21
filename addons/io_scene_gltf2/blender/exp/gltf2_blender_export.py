@@ -150,7 +150,9 @@ def __fix_json(obj):
 
 
 def __should_include_json_value(key, value):
-    allowed_empty_collections = ["KHR_materials_unlit"]
+    allowed_empty_collections = ["KHR_materials_unlit", "ASOBO_material_anisotropic", "ASOBO_material_SSS", "ASOBO_material_glass", \
+        "ASOBO_material_blend_gbuffer", "ASOBO_material_clear_coat", "ASOBO_material_environment_occluder", "ASOBO_material_fake_terrain", \
+            "ASOBO_material_fresnel_fade", "ASOBO_material_parallax_window", "ASOBO_material_invisible"] # asobo materials
 
     if value is None:
         return False

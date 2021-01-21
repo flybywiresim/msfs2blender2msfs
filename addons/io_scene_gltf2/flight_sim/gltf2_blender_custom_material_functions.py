@@ -152,6 +152,16 @@ def CreatePBRBranch(Material, bsdf_node, offset=(0.0,0.0)):
     #Disconnected to preserve color in glTF
     #links.new(base_color_detail_mix.outputs["Color"], bsdf_node.inputs["Base Color"])
 
+    # Roughness scale
+    roughness_scale = CreateNewNode(Material,"ShaderNodeValue","roughness_scale",location=(offset[0]+750,offset[1]-350))
+    roughness_scale.hide = True
+    roughness_scale.outputs["Value"].default_value = 1.0
+
+    # Metallic scale
+    metallic_scale = CreateNewNode(Material,"ShaderNodeValue","metallic_scale",location=(offset[0]+750,offset[1]-300))
+    metallic_scale.hide = True
+    metallic_scale.outputs["Value"].default_value = 1.0
+
     #Create the Alpha path:
     alpha_multiply = CreateNewNode(Material,"ShaderNodeMath","alpha_multiply",location=(offset[0]+550,offset[1]-350))
     alpha_multiply.hide = True
@@ -159,15 +169,19 @@ def CreatePBRBranch(Material, bsdf_node, offset=(0.0,0.0)):
     alpha_multiply.inputs[1].default_value = Material.msfs_color_alpha_mix
     alpha_multiply.inputs[0].default_value = 1.0
 
-    #Link the UV:
+    # Link the UV:
     links.new(uv_node.outputs["UV"], base_color_node.inputs["Vector"])
-    #Create albedo links:
-    links.new(base_color_tint.outputs["Color"], base_color_tint_mix.inputs["Color1"])
-    links.new(base_color_tint_mix.outputs["Color"], base_color_detail_mix.inputs["Color1"])
+    # Create albedo links:
+    links.new(base_color_tint.outputs["Color"], bsdf_node.inputs["Base Color"])
 
-    #Link the Alpha:
+    # Link the alpha:
     links.new(base_color_node.outputs["Alpha"], alpha_multiply.inputs[0])
 
+    # Link the roughness:
+    links.new(roughness_scale.outputs["Value"], bsdf_node.inputs["Roughness"])
+
+    # Link the metallic:
+    links.new(metallic_scale.outputs["Value"], bsdf_node.inputs["Metallic"])
 
     # Metallic
     texture_metallic_node = CreateNewNode(Material,"ShaderNodeTexImage","metallic",location=(offset[0],offset[1]-280))
@@ -260,7 +274,7 @@ def CreateEmissiveBranch(Material, bsdf_node, offset=(0.0,0.0)):
     #Link UV:
     links.new(uv_node.outputs["UV"], emissive_node.inputs["Vector"])
     #Create metallic links:
-    links.new(emissive_tint.outputs["Color"], emissive_tint_mix.inputs["Color1"])
+    links.new(emissive_tint.outputs["Color"], bsdf_node.inputs["Emission"])
     links.new(emissive_node.outputs["Color"], emissive_tint_mix.inputs["Color2"])
 
 
