@@ -1008,7 +1008,7 @@ class ImportGLTF2(Operator, ImportHelper):
             'This option attempts to combine co-located vertices where possible. '
             'Currently cannot combine verts with different normals'
         ),
-        default=False,
+        default=True,
     )
 
     import_shading: EnumProperty(
@@ -1045,7 +1045,7 @@ class ImportGLTF2(Operator, ImportHelper):
             'the inverse bind matrices. '
             'When off, use default/rest pose as bind pose'
         ),
-        default=True,
+        default=False,
     )
 
     def draw(self, context):
