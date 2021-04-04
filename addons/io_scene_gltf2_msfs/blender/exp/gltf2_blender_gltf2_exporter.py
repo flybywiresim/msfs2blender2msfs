@@ -211,7 +211,7 @@ class GlTF2Exporter:
         """
         Add Asobo asset extensions to the glTF.
 
-        :param animation: glTF extensions in a dictionary
+        :param extensions: glTF extensions in a dictionary
         :return: nothing
         """
         if self.__finalized:
@@ -239,10 +239,22 @@ class GlTF2Exporter:
         return self.__append_unique_and_get_index(gltf_list, property)
 
     def add_extension_required(self, extension):
+        """
+        Add an extension to extensionsRequired in the glTF.
+
+        :param extension: a glTF extension
+        :return: nothing
+        """
         if extension not in self.__gltf.extensions_required:
             self.__gltf.extensions_required.append(extension)
 
     def add_extension_used(self, extension):
+        """
+        Add an extension to extensionsUsed in the glTF.
+
+        :param extension: a glTF extension
+        :return: nothing
+        """
         if extension not in self.__gltf.extensions_used:
             self.__gltf.extensions_used.append(extension)
 
