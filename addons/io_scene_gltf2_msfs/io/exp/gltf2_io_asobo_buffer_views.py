@@ -15,6 +15,7 @@
 import base64
 import struct
 import numpy as np
+from copy import deepcopy
 
 from io_scene_gltf2_msfs.io.com import gltf2_io
 from io_scene_gltf2_msfs.io.com import gltf2_io_constants
@@ -29,6 +30,8 @@ STRUCT_WEIGHT1 = struct.Struct('f')
 STRUCT_WEIGHT4 = struct.Struct('HHHH')
 STRUCT_COLOR_VTX = struct.Struct('HHHH')
 STRUCT_COLOR_BLEND = struct.Struct('bbbb')
+
+SPLIT_INDEX = 65530 # Must be a multiple of 3, and not be greater than 65535.  We use 65530 instead of 65535 as that seems to be the max index the sim uses
 
 class AsoboBuffer:
     def __init__(self, buffer_index=0):
@@ -197,8 +200,148 @@ class AsoboBufferViews():
         else:
             raise RuntimeError('Not all attributes of primitive have the same count')
 
+    @staticmethod
+    def split_indices(indices, base_vertex_index):
+        """
+        Splits an array of indices so that no value is greater than SPLIT_INDEX. To do this, we group indices that are close to each other and calculate
+        a base_vertex_index.
+
+        :param indices: a numpy array
+        :param base_vertex_index: an int or None
+        :return (split_indices, base_vertex_index): split_indices is a list of dictionaries in the following format: ['indices': [], 'base_vertex_index': int or None]. base_vertex_index is
+        our final base vertex index, and is the greatest out of those in split_indices.
+        """
+        # Group the indices into groups of 3
+        indices_groups = indices.reshape(-1, 3)
+
+        split_indices = []
+        while len(indices_groups) > 0: # This continues until every index group is properly split
+            # Subtract min_index from indices_groups
+            min_indices_groups = np.amin(indices_groups)
+
+            indices_groups -= min_indices_groups
+
+            # Add min index to base_vertex_index
+            if base_vertex_index is None:
+                if min_indices_groups != 0:
+                    base_vertex_index = min_indices_groups
+            else:
+                base_vertex_index += min_indices_groups
+
+            # Check if we need to duplicate any indices
+            mask = np.amax(indices_groups, axis=1) - np.amin(indices_groups, axis=1) > SPLIT_INDEX
+            overflow_indices = indices_groups[mask]
+            if len(overflow_indices) > 0:
+                if np.amin(overflow_indices) == 0:
+                    raise RuntimeError('Index group cannot be split. You can try dividing the mesh into multiple meshes. This will be fixed in a future version of the exporter.')
+            
+            # Create a boolean mask to select indices that can fit into our current "chunk"
+            mask = np.amax(indices_groups, axis=1) <= SPLIT_INDEX
+            indices_chunk = indices_groups[mask].flatten() # We want to flatten this since we paired the indices into groups of 3
+
+            # Remove the indices that we used by setting indices_groups to the opposite of our boolean mask
+            indices_groups = indices_groups[~mask]
+
+            if len(indices_chunk) > 0:
+                split_indices.append({'indices': indices_chunk, 'base_vertex_index': base_vertex_index})
+
+        return split_indices, base_vertex_index
+
+
+    @staticmethod
+    def split_primitive(primitive, is_skinned):
+        """
+        Takes a primitive and splits it into multiple primitives. This is required if our primitive has an index that is greater than SPLIT_INDEX. This is needed
+        as Microsoft Flight Simulator only supports 16-bit ints for indices.
+
+        :param primitive: a glTF primitive
+        :param is_skinned: if the mesh is skinned
+        :return (split_primitives, base_vertex_index): split_primitives is a list of glTF primitives, and base_vertex_index is our greatest base vertex index out of
+        all the split primitives.
+        """
+        # The first step in splitting the primitive is arranging the indices in numerical order, as they are gathered in an arbitrary order
+        indices = primitive.indices.buffer_view
+
+        split_indices, base_vertex_index = AsoboBufferViews.split_indices(indices, primitive.extras['ASOBO_primitive']['BaseVertexIndex'])
+
+        # Now we split this new primitive that we've made
+        split_primitives = []
+
+        for i, v in enumerate(split_indices):
+            # v is a dictionary with 2 keys - indices and base_vertex_index
+
+            if max(v['indices']) > SPLIT_INDEX: # There is a chance that our indices may not have been completely split. If that's the case, raise an error
+               raise RuntimeError("Couldn't split indices for primitive")
+
+            # Create the indices accessor and the primitive
+            indices_accessor = gltf2_io.Accessor(
+                buffer_view=np.array(v['indices'], dtype=np.uint16), # Use a uint16 array, as that is what the sim supports. None of our indices are greater than 65535, so we are safe doing this
+                byte_offset=None,
+                component_type=gltf2_io_constants.ComponentType.UnsignedShort,
+                count=len(v['indices']),
+                extensions=None,
+                extras=None,
+                max=None,
+                min=None,
+                name=None,
+                normalized=None,
+                sparse=None,
+                type=gltf2_io_constants.DataType.Scalar
+            )
+
+            # Create a new primitive using our indices_accessor. We need to create a deepcopy of the attributes and extras since we will change some of the values. If we don't create a deepcopy, our changes will reflect across EVERY new primitive.
+            split_primitive = gltf2_io.MeshPrimitive(
+                attributes=deepcopy(primitive.attributes),
+                extensions=None,
+                extras=deepcopy(primitive.extras),
+                indices=indices_accessor,
+                material=primitive.material,
+                mode=primitive.mode,
+                targets=primitive.targets
+            )
+
+            # On unskinned meshes, the accessors are shared between all primitives. Since every primitive contains the same data, we only need to use the first primitive's data. If we don't remove the data from the other primitives, we will get indices in the wrong places.
+            if i > 0 and not is_skinned:
+                for attribute in split_primitive.attributes:
+                    split_primitive.attributes[attribute].buffer_view = None
+                    split_primitive.attributes[attribute].count = None
+
+            if v['base_vertex_index'] is not None: # It is important to note that v['base_vertex_index'] is different from the variable base_vertex_index. v['base_vertex_index'] is the base vertex index at our current split, while base_vertex_index is for the final split.
+                split_primitive.extras['ASOBO_primitive']['BaseVertexIndex'] = int(v['base_vertex_index'])
+
+            split_primitive.extras['ASOBO_primitive']['PrimitiveCount'] = indices_accessor.count // 3
+
+            split_primitives.append(split_primitive)
+
+        return split_primitives, base_vertex_index
+
     def __handle_mesh(self, mesh, is_skinned):
-        # The order in which we collect the buffer views is the same as defined in the class
+        # Before processing the mesh data, we check if we need to split any primitives
+        max_index = 0
+        base_vertex_index = None
+        new_primitives = []
+        for primitive in mesh.primitives:
+            # The first thing we do is add the previous primitive's max index to our indices. This is necessary for unskinned meshes since the indices accessor is shared.
+            primitive.indices.buffer_view = primitive.indices.buffer_view.astype(int) # Convert the buffer view dtype to a python int. This prevents overflow. While we could use something like np.uint64, it's probably safer to use a python int. We later convert this to uint16
+            if not is_skinned:
+                primitive.indices.buffer_view += max_index
+                max_index = max(primitive.indices.buffer_view) + 1
+
+            # Subtract base vertex index from our indices
+            if base_vertex_index is not None:
+                primitive.indices.buffer_view -= base_vertex_index
+                primitive.extras['ASOBO_primitive']['BaseVertexIndex'] = int(base_vertex_index)
+                
+            # Only split primitive if needed
+            if max(primitive.indices.buffer_view) > SPLIT_INDEX:
+                split_primitives, base_vertex_index = AsoboBufferViews.split_primitive(primitive, is_skinned)
+                new_primitives.extend(split_primitives)
+            else:
+                new_primitives.append(primitive)
+
+        # Finally, overwrite the mesh primitives to our new ones.
+        mesh.primitives = new_primitives
+
         if is_skinned:
             for i, primitive in enumerate(mesh.primitives):
 
@@ -308,6 +451,40 @@ class AsoboBufferViews():
         else: # Mesh is not skinned
 
             #
+            # Gather indices
+            #
+
+            all_indices = [] # Use a regular python list as appending is faster than using numpy
+
+            # Reverse indices (this makes the faces render in the correct direction)
+            for primitive in mesh.primitives:
+                indices = primitive.indices.buffer_view
+
+                for i in range(0, len(indices), 3):
+                    all_indices.append(indices[i + 2])
+                    all_indices.append(indices[i + 1])
+                    all_indices.append(indices[i + 0])
+
+            primitive = mesh.primitives[0] # use first primitive
+            indices_accessor = primitive.indices
+
+            # Convert to numpy array
+            dtype = gltf2_io_constants.ComponentType.to_numpy_dtype_asobo(indices_accessor.component_type)
+            all_indices = np.array(all_indices, dtype=dtype)
+
+            # Set binary data and append to buffer view
+            binary_data = gltf2_io_binary_data.BinaryData(all_indices.tobytes())
+            offset = self.BufferViewIndex.buffer.append_data(binary_data, check_padding=True, calculate_offset=True)
+            if self.BufferViewIndex not in self.BufferViews:
+                self.BufferViews.append(self.BufferViewIndex)
+
+            indices_accessor.buffer_view = self.BufferViews.index(self.BufferViewIndex)
+            if offset != 0:
+                indices_accessor.byte_offset = offset
+            indices_accessor.count = len(all_indices)
+            indices_accessor.name = f'{mesh.name}_indices#{len(mesh.primitives) - 1}'
+
+            #
             # Share accessors between the primitives
             #
 
@@ -316,7 +493,9 @@ class AsoboBufferViews():
                 accessor = mesh.primitives[0].attributes[attribute] # Share the first primitive's accessors
                 buffer_views = []
                 for primitive in mesh.primitives:
-                    buffer_views.extend(primitive.attributes[attribute].buffer_view) # Add other primitive's data into the accessor
+                    if attribute in primitive.attributes:
+                        if primitive.attributes[attribute].buffer_view is not None:
+                            buffer_views.extend(primitive.attributes[attribute].buffer_view) # Add other primitive's data into the accessor
                 accessor.buffer_view = buffer_views
                 accessor.count = len(buffer_views) # Recalculate the count
 
@@ -384,44 +563,6 @@ class AsoboBufferViews():
             for attribute in primitive.attributes:
                 primitive.attributes[attribute].buffer_view = self.BufferViews.index(vertex_nd_buffer_view)
                 primitive.attributes[attribute].name = f'{mesh.name}_vertices#0_{attribute}'
-
-            #
-            # Gather indices
-            #
-
-            all_indices = [] # Use a regular python list as appending is faster than using numpy
-
-            # Add max index to the indices (this makes sure that meshes with more than one primitive render correctly)
-            max_index = 0
-            for primitive in mesh.primitives:
-                indices = primitive.indices.buffer_view
-                indices = np.array([x + max_index for x in indices])
-                max_index = max(indices) + 1
-
-                # Reverse indices (this makes the faces render in the correct direction)
-                for i in range(0, len(indices), 3):
-                    all_indices.append(indices[i + 2])
-                    all_indices.append(indices[i + 1])
-                    all_indices.append(indices[i + 0])
-
-            primitive = mesh.primitives[0] # use first primitive
-            indices_accessor = primitive.indices
-
-            # Convert to numpy array
-            dtype = gltf2_io_constants.ComponentType.to_numpy_dtype_asobo(indices_accessor.component_type)
-            all_indices = np.array(all_indices, dtype=dtype)
-
-            # Set binary data and append to buffer view
-            binary_data = gltf2_io_binary_data.BinaryData(all_indices.tobytes())
-            offset = self.BufferViewIndex.buffer.append_data(binary_data, check_padding=True, calculate_offset=True)
-            if self.BufferViewIndex not in self.BufferViews:
-                    self.BufferViews.append(self.BufferViewIndex)
-
-            indices_accessor.buffer_view = self.BufferViews.index(self.BufferViewIndex)
-            if offset != 0:
-                indices_accessor.byte_offset = offset
-            indices_accessor.count = len(all_indices)
-            indices_accessor.name = f'{mesh.name}_indices#{len(mesh.primitives) - 1}'
 
             #
             # Distribute the shared accessors between all the primitives
