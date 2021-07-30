@@ -20,8 +20,10 @@ from .gltf2_blender_camera import BlenderCamera
 from .gltf2_blender_light import BlenderLight
 from .gltf2_blender_vnode import VNode
 
-class BlenderNode():
+
+class BlenderNode:
     """Blender Node."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -32,7 +34,12 @@ class BlenderNode():
 
         gltf.display_current_node += 1
         if bpy.app.debug_value == 101:
-            gltf.log.critical("Node %d of %d (id %s)", gltf.display_current_node, len(gltf.vnodes), vnode_id)
+            gltf.log.critical(
+                "Node %d of %d (id %s)",
+                gltf.display_current_node,
+                len(gltf.vnodes),
+                vnode_id,
+            )
 
         if vnode.type == VNode.Object:
             BlenderNode.create_object(gltf, vnode_id)
@@ -65,7 +72,9 @@ class BlenderNode():
 
         elif vnode.light_node_idx is not None:
             pynode = gltf.data.nodes[vnode.light_node_idx]
-            light = BlenderLight.create(gltf, pynode.extensions['KHR_lights_punctual']['light'])
+            light = BlenderLight.create(
+                gltf, pynode.extensions["KHR_lights_punctual"]["light"]
+            )
             name = vnode.name or light.name
             obj = bpy.data.objects.new(name, light)
 
@@ -88,7 +97,7 @@ class BlenderNode():
         # Set transform
         trans, rot, scale = vnode.trs()
         obj.location = trans
-        obj.rotation_mode = 'QUATERNION'
+        obj.rotation_mode = "QUATERNION"
         obj.rotation_quaternion = rot
         obj.scale = scale
 
@@ -100,7 +109,7 @@ class BlenderNode():
             elif parent_vnode.type == VNode.Bone:
                 arma_vnode = gltf.vnodes[parent_vnode.bone_arma]
                 obj.parent = arma_vnode.blender_object
-                obj.parent_type = 'BONE'
+                obj.parent_type = "BONE"
                 obj.parent_bone = parent_vnode.blender_bone_name
 
                 # Nodes with a bone parent need to be translated
@@ -120,18 +129,20 @@ class BlenderNode():
 
         # Find all bones for this arma
         bone_ids = []
+
         def visit(id):  # Depth-first walk
             if gltf.vnodes[id].type == VNode.Bone:
                 bone_ids.append(id)
                 for child in gltf.vnodes[id].children:
                     visit(child)
+
         for child in arma.children:
             visit(child)
 
         # Switch into edit mode to create all edit bones
 
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
+        if bpy.context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
         bpy.context.window.scene = bpy.data.scenes[gltf.blender_scene]
         bpy.context.view_layer.objects.active = blender_arma
         bpy.ops.object.mode_set(mode="EDIT")
@@ -174,7 +185,7 @@ class BlenderNode():
             t, r, s = vnode.trs()
             et, er = vnode.editbone_trans, vnode.editbone_rot
             pose_bone.location = er.conjugated() @ (t - et)
-            pose_bone.rotation_mode = 'QUATERNION'
+            pose_bone.rotation_mode = "QUATERNION"
             pose_bone.rotation_quaternion = er.conjugated() @ r
             pose_bone.scale = s
 
@@ -228,8 +239,10 @@ class BlenderNode():
             if pymesh.shapekey_names[i] is not None:
                 kb = obj.data.shape_keys.key_blocks[pymesh.shapekey_names[i]]
                 # extend range if needed
-                if weight < kb.slider_min: kb.slider_min = weight
-                if weight > kb.slider_max: kb.slider_max = weight
+                if weight < kb.slider_min:
+                    kb.slider_min = weight
+                if weight > kb.slider_max:
+                    kb.slider_max = weight
                 kb.value = weight
 
     @staticmethod

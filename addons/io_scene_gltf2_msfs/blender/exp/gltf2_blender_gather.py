@@ -38,7 +38,7 @@ def gather_gltf2(export_settings):
         if export_settings[gltf2_blender_export_keys.ANIMATIONS]:
             animations += __gather_animations(blender_scene, export_settings)
         if bpy.context.scene.name == blender_scene.name:
-            active_scene = len(scenes) -1
+            active_scene = len(scenes) - 1
     return active_scene, scenes, animations
 
 
@@ -48,20 +48,25 @@ def __gather_scene(blender_scene, export_settings):
         extensions=None,
         extras=__gather_extras(blender_scene, export_settings),
         name=blender_scene.name,
-        nodes=[]
+        nodes=[],
     )
 
     for _blender_object in [obj for obj in blender_scene.objects if obj.proxy is None]:
         if _blender_object.parent is None:
-            blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
+            blender_object = (
+                _blender_object.proxy if _blender_object.proxy else _blender_object
+            )
             node = gltf2_blender_gather_nodes.gather_node(
                 blender_object,
                 blender_object.library.name if blender_object.library else None,
-                blender_scene, None, export_settings)
+                blender_scene,
+                None,
+                export_settings,
+            )
             if node is not None:
                 scene.nodes.append(node)
 
-    export_user_extensions('gather_scene_hook', export_settings, scene, blender_scene)
+    export_user_extensions("gather_scene_hook", export_settings, scene, blender_scene)
 
     return scene
 
@@ -72,24 +77,34 @@ def __gather_animations(blender_scene, export_settings):
 
     for _blender_object in blender_scene.objects:
 
-        blender_object = _blender_object.proxy if _blender_object.proxy else _blender_object
+        blender_object = (
+            _blender_object.proxy if _blender_object.proxy else _blender_object
+        )
 
         # First check if this object is exported or not. Do not export animation of not exported object
-        obj_node = gltf2_blender_gather_nodes.gather_node(blender_object,
+        obj_node = gltf2_blender_gather_nodes.gather_node(
+            blender_object,
             blender_object.library.name if blender_object.library else None,
-            blender_scene, None, export_settings)
+            blender_scene,
+            None,
+            export_settings,
+        )
         if obj_node is not None:
             # Check was done on armature, but use here the _proxy object, because this is where the animation is
-            animations_, merged_tracks = gltf2_blender_gather_animations.gather_animations(_blender_object, merged_tracks, len(animations), export_settings)
+            (
+                animations_,
+                merged_tracks,
+            ) = gltf2_blender_gather_animations.gather_animations(
+                _blender_object, merged_tracks, len(animations), export_settings
+            )
             animations += animations_
 
-    if export_settings['gltf_nla_strips'] is False:
+    if export_settings["gltf_nla_strips"] is False:
         # Fake an animation with all animations of the scene
         merged_tracks = {}
-        merged_tracks['Animation'] = []
+        merged_tracks["Animation"] = []
         for idx, animation in enumerate(animations):
-            merged_tracks['Animation'].append(idx)
-
+            merged_tracks["Animation"].append(idx)
 
     to_delete_idx = []
     for merged_anim_track in merged_tracks.keys():
@@ -122,7 +137,9 @@ def __gather_animations(blender_scene, export_settings):
                 for k in animations[anim_idx].extras.keys():
                     if animations[base_animation_idx].extras is None:
                         animations[base_animation_idx].extras = {}
-                    animations[base_animation_idx].extras[k] = animations[anim_idx].extras[k]
+                    animations[base_animation_idx].extras[k] = animations[
+                        anim_idx
+                    ].extras[k]
 
             offset_sampler = len(animations[base_animation_idx].samplers)
             for sampler in animations[anim_idx].samplers:
@@ -130,10 +147,17 @@ def __gather_animations(blender_scene, export_settings):
 
             for channel in animations[anim_idx].channels:
                 if (channel.target.node, channel.target.path) in already_animated:
-                    print_console("WARNING", "Some strips have same channel animation ({}), on node {} !".format(channel.target.path, channel.target.node.name))
+                    print_console(
+                        "WARNING",
+                        "Some strips have same channel animation ({}), on node {} !".format(
+                            channel.target.path, channel.target.node.name
+                        ),
+                    )
                     continue
                 animations[base_animation_idx].channels.append(channel)
-                animations[base_animation_idx].channels[-1].sampler = animations[base_animation_idx].channels[-1].sampler + offset_sampler
+                animations[base_animation_idx].channels[-1].sampler = (
+                    animations[base_animation_idx].channels[-1].sampler + offset_sampler
+                )
                 already_animated.append((channel.target.node, channel.target.path))
 
     new_animations = []
@@ -144,7 +168,6 @@ def __gather_animations(blender_scene, export_settings):
             new_animations.append(animation)
     else:
         new_animations = animations
-
 
     return new_animations
 

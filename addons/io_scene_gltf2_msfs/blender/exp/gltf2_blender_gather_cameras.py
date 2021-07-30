@@ -32,10 +32,12 @@ def gather_camera(blender_camera, export_settings):
         name=__gather_name(blender_camera, export_settings),
         orthographic=__gather_orthographic(blender_camera, export_settings),
         perspective=__gather_perspective(blender_camera, export_settings),
-        type=__gather_type(blender_camera, export_settings)
+        type=__gather_type(blender_camera, export_settings),
     )
 
-    export_user_extensions('gather_camera_hook', export_settings, camera, blender_camera)
+    export_user_extensions(
+        "gather_camera_hook", export_settings, camera, blender_camera
+    )
 
     return camera
 
@@ -49,7 +51,7 @@ def __gather_extensions(blender_camera, export_settings):
 
 
 def __gather_extras(blender_camera, export_settings):
-    if export_settings['gltf_extras']:
+    if export_settings["gltf_extras"]:
         return generate_extras(blender_camera)
     return None
 
@@ -61,12 +63,7 @@ def __gather_name(blender_camera, export_settings):
 def __gather_orthographic(blender_camera, export_settings):
     if __gather_type(blender_camera, export_settings) == "orthographic":
         orthographic = gltf2_io.CameraOrthographic(
-            extensions=None,
-            extras=None,
-            xmag=None,
-            ymag=None,
-            zfar=None,
-            znear=None
+            extensions=None, extras=None, xmag=None, ymag=None, zfar=None, znear=None
         )
 
         orthographic.xmag = blender_camera.ortho_scale
@@ -87,23 +84,33 @@ def __gather_perspective(blender_camera, export_settings):
             extras=None,
             yfov=None,
             zfar=None,
-            znear=None
+            znear=None,
         )
 
-        width = bpy.context.scene.render.pixel_aspect_x * bpy.context.scene.render.resolution_x
-        height = bpy.context.scene.render.pixel_aspect_y * bpy.context.scene.render.resolution_y
+        width = (
+            bpy.context.scene.render.pixel_aspect_x
+            * bpy.context.scene.render.resolution_x
+        )
+        height = (
+            bpy.context.scene.render.pixel_aspect_y
+            * bpy.context.scene.render.resolution_y
+        )
         perspective.aspect_ratio = width / height
 
         if width >= height:
-            if blender_camera.sensor_fit != 'VERTICAL':
-                perspective.yfov = 2.0 * math.atan(math.tan(blender_camera.angle * 0.5) / perspective.aspect_ratio)
+            if blender_camera.sensor_fit != "VERTICAL":
+                perspective.yfov = 2.0 * math.atan(
+                    math.tan(blender_camera.angle * 0.5) / perspective.aspect_ratio
+                )
             else:
                 perspective.yfov = blender_camera.angle
         else:
-            if blender_camera.sensor_fit != 'HORIZONTAL':
+            if blender_camera.sensor_fit != "HORIZONTAL":
                 perspective.yfov = blender_camera.angle
             else:
-                perspective.yfov = 2.0 * math.atan(math.tan(blender_camera.angle * 0.5) / perspective.aspect_ratio)
+                perspective.yfov = 2.0 * math.atan(
+                    math.tan(blender_camera.angle * 0.5) / perspective.aspect_ratio
+                )
 
         perspective.znear = blender_camera.clip_start
         perspective.zfar = blender_camera.clip_end
@@ -113,8 +120,8 @@ def __gather_perspective(blender_camera, export_settings):
 
 
 def __gather_type(blender_camera, export_settings):
-    if blender_camera.type == 'PERSP':
+    if blender_camera.type == "PERSP":
         return "perspective"
-    elif blender_camera.type == 'ORTHO':
+    elif blender_camera.type == "ORTHO":
         return "orthographic"
     return None

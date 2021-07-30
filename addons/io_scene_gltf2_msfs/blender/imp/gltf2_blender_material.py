@@ -20,8 +20,9 @@ from .gltf2_blender_KHR_materials_pbrSpecularGlossiness import pbr_specular_glos
 from .gltf2_blender_KHR_materials_unlit import unlit
 
 
-class BlenderMaterial():
+class BlenderMaterial:
     """Blender Material."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -36,8 +37,10 @@ class BlenderMaterial():
 
         mat = bpy.data.materials.new(name)
         pymaterial.blender_material[vertex_color] = mat.name
-        mat.is_import = True # this prevents the property callbacks from running during import, since that would be pointless
-        mat.msfs_material_type = BlenderMaterial.determine_msfs_material_type(pymaterial)
+        mat.is_import = True  # this prevents the property callbacks from running during import, since that would be pointless
+        mat.msfs_material_type = BlenderMaterial.determine_msfs_material_type(
+            pymaterial
+        )
 
         set_extras(mat, pymaterial.extras)
         BlenderMaterial.set_double_sided(pymaterial, mat)
@@ -51,32 +54,32 @@ class BlenderMaterial():
         mh = MaterialHelper(gltf, pymaterial, mat, vertex_color)
 
         exts = pymaterial.extensions or {}
-        if 'KHR_materials_unlit' in exts:
+        if "KHR_materials_unlit" in exts:
             unlit(mh)
-        elif 'KHR_materials_pbrSpecularGlossiness' in exts:
+        elif "KHR_materials_pbrSpecularGlossiness" in exts:
             pbr_specular_glossiness(mh)
         else:
             pbr_metallic_roughness(mh)
 
-        mat.is_import = False # once we're done setting things we can treat this as a normal material
+        mat.is_import = False  # once we're done setting things we can treat this as a normal material
 
     @staticmethod
     def set_double_sided(pymaterial, mat):
-        mat.use_backface_culling = (pymaterial.double_sided != True)
+        mat.use_backface_culling = pymaterial.double_sided != True
         if pymaterial.double_sided is not None:
             mat.msfs_double_sided = pymaterial.double_sided
 
     @staticmethod
     def set_alpha_mode(pymaterial, mat):
         alpha_mode = pymaterial.alpha_mode
-        if alpha_mode == 'BLEND':
-            mat.blend_method = 'BLEND'
-        elif alpha_mode == 'MASK':
-            mat.blend_method = 'CLIP'
+        if alpha_mode == "BLEND":
+            mat.blend_method = "BLEND"
+        elif alpha_mode == "MASK":
+            mat.blend_method = "CLIP"
             alpha_cutoff = pymaterial.alpha_cutoff
             alpha_cutoff = alpha_cutoff if alpha_cutoff is not None else 0.5
             mat.alpha_threshold = alpha_cutoff
-        
+
         if alpha_mode is not None:
             mat.msfs_alpha_mode = alpha_mode
 
@@ -88,7 +91,7 @@ class BlenderMaterial():
             return
 
         exts = pymaterial.extensions or {}
-        if 'KHR_materials_pbrSpecularGlossiness' in exts:
+        if "KHR_materials_pbrSpecularGlossiness" in exts:
             # TODO
             return
         else:
@@ -101,7 +104,9 @@ class BlenderMaterial():
         mat.msfs_base_color_factor = color
 
     @staticmethod
-    def determine_msfs_material_type(pymaterial): # It appears that sometimes a material can have multiple material extensions. This shouldn't be an issue, but should be investigated in the future
+    def determine_msfs_material_type(
+        pymaterial,
+    ):  # It appears that sometimes a material can have multiple material extensions. This shouldn't be an issue, but should be investigated in the future
         extras = pymaterial.extras
         extensions = pymaterial.extensions
         material_type = "msfs_standard"
@@ -121,7 +126,10 @@ class BlenderMaterial():
                 material_type = "msfs_anisotropic"
             elif "ASOBO_material_SSS" in extensions:
                 material_type = "msfs_sss"
-            elif "ASOBO_material_glass" in extensions or "ASOBO_material_kitty_glass" in extensions: # glass has two material types
+            elif (
+                "ASOBO_material_glass" in extensions
+                or "ASOBO_material_kitty_glass" in extensions
+            ):  # glass has two material types
                 material_type = "msfs_glass"
             elif "ASOBO_material_blend_gbuffer" in extensions:
                 material_type = "msfs_decal"
@@ -137,5 +145,5 @@ class BlenderMaterial():
                 material_type = "msfs_parallax"
             elif "ASOBO_material_invisible" in extensions:
                 material_type = "msfs_invisible"
-        
+
         return material_type

@@ -20,7 +20,9 @@ from io_scene_gltf2_msfs.blender.exp import gltf2_blender_gather_texture
 from io_scene_gltf2_msfs.blender.exp import gltf2_blender_search_node_tree
 from io_scene_gltf2_msfs.blender.exp import gltf2_blender_get
 from io_scene_gltf2_msfs.blender.exp.gltf2_blender_get import previous_node
-from io_scene_gltf2_msfs.blender.exp.gltf2_blender_gather_sampler import detect_manual_uv_wrapping
+from io_scene_gltf2_msfs.blender.exp.gltf2_blender_gather_sampler import (
+    detect_manual_uv_wrapping,
+)
 from io_scene_gltf2_msfs.io.com.gltf2_io_extensions import Extension
 from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_extensions
 
@@ -30,49 +32,74 @@ from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_exte
 # occlusion the primary_socket would be the occlusion socket, and
 # blender_shader_sockets would be the (O,R,M) sockets.
 
+
 def gather_texture_info(primary_socket, blender_shader_sockets, export_settings):
-    return __gather_texture_info_helper(primary_socket, blender_shader_sockets, 'DEFAULT', export_settings)
+    return __gather_texture_info_helper(
+        primary_socket, blender_shader_sockets, "DEFAULT", export_settings
+    )
 
-def gather_material_normal_texture_info_class(primary_socket, blender_shader_sockets, export_settings):
-    return __gather_texture_info_helper(primary_socket, blender_shader_sockets, 'NORMAL', export_settings)
 
-def gather_material_occlusion_texture_info_class(primary_socket, blender_shader_sockets, export_settings):
-    return __gather_texture_info_helper(primary_socket, blender_shader_sockets, 'OCCLUSION', export_settings)
+def gather_material_normal_texture_info_class(
+    primary_socket, blender_shader_sockets, export_settings
+):
+    return __gather_texture_info_helper(
+        primary_socket, blender_shader_sockets, "NORMAL", export_settings
+    )
+
+
+def gather_material_occlusion_texture_info_class(
+    primary_socket, blender_shader_sockets, export_settings
+):
+    return __gather_texture_info_helper(
+        primary_socket, blender_shader_sockets, "OCCLUSION", export_settings
+    )
 
 
 @cached
 def __gather_texture_info_helper(
-        primary_socket: bpy.types.NodeSocket,
-        blender_shader_sockets: typing.Tuple[bpy.types.NodeSocket],
-        kind: str,
-        export_settings):
-    if not __filter_texture_info(primary_socket, blender_shader_sockets, export_settings):
+    primary_socket: bpy.types.NodeSocket,
+    blender_shader_sockets: typing.Tuple[bpy.types.NodeSocket],
+    kind: str,
+    export_settings,
+):
+    if not __filter_texture_info(
+        primary_socket, blender_shader_sockets, export_settings
+    ):
         return None
 
-    tex_transform, tex_coord = __gather_texture_transform_and_tex_coord(primary_socket, export_settings)
+    tex_transform, tex_coord = __gather_texture_transform_and_tex_coord(
+        primary_socket, export_settings
+    )
 
     fields = {
-        'extensions': __gather_extensions(tex_transform, export_settings),
-        'extras': __gather_extras(blender_shader_sockets, export_settings),
-        'index': __gather_index(blender_shader_sockets, export_settings),
-        'tex_coord': tex_coord,
+        "extensions": __gather_extensions(tex_transform, export_settings),
+        "extras": __gather_extras(blender_shader_sockets, export_settings),
+        "index": __gather_index(blender_shader_sockets, export_settings),
+        "tex_coord": tex_coord,
     }
 
-    if kind == 'DEFAULT':
+    if kind == "DEFAULT":
         texture_info = gltf2_io.TextureInfo(**fields)
 
-    elif kind == 'NORMAL':
-        fields['scale'] = __gather_normal_scale(primary_socket, export_settings)
+    elif kind == "NORMAL":
+        fields["scale"] = __gather_normal_scale(primary_socket, export_settings)
         texture_info = gltf2_io.MaterialNormalTextureInfoClass(**fields)
 
-    elif kind == 'OCCLUSION':
-        fields['strength'] = __gather_occlusion_strength(primary_socket, export_settings)
+    elif kind == "OCCLUSION":
+        fields["strength"] = __gather_occlusion_strength(
+            primary_socket, export_settings
+        )
         texture_info = gltf2_io.MaterialOcclusionTextureInfoClass(**fields)
 
     if texture_info.index is None:
         return None
 
-    export_user_extensions('gather_texture_info_hook', export_settings, texture_info, blender_shader_sockets)
+    export_user_extensions(
+        "gather_texture_info_hook",
+        export_settings,
+        texture_info,
+        blender_shader_sockets,
+    )
 
     return texture_info
 
@@ -86,7 +113,9 @@ def __filter_texture_info(primary_socket, blender_shader_sockets, export_setting
         return False
     if not all([elem is not None for elem in blender_shader_sockets]):
         return False
-    if any([__get_tex_from_socket(socket) is None for socket in blender_shader_sockets]):
+    if any(
+        [__get_tex_from_socket(socket) is None for socket in blender_shader_sockets]
+    ):
         # sockets do not lead to a texture --> discard
         return False
 
@@ -108,10 +137,11 @@ def __gather_extras(blender_shader_sockets, export_settings):
 def __gather_normal_scale(primary_socket, export_settings):
     result = gltf2_blender_search_node_tree.from_socket(
         primary_socket,
-        gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeNormalMap))
+        gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeNormalMap),
+    )
     if not result:
         return None
-    strengthInput = result[0].shader_node.inputs['Strength']
+    strengthInput = result[0].shader_node.inputs["Strength"]
     if not strengthInput.is_linked and strengthInput.default_value != 1:
         return strengthInput.default_value
     return None
@@ -122,10 +152,14 @@ def __gather_occlusion_strength(primary_socket, export_settings):
     # Look for a MixRGB node that mixes with pure white in front of
     # primary_socket. The mix factor gives the occlusion strength.
     node = gltf2_blender_get.previous_node(primary_socket)
-    if node and node.type == 'MIX_RGB' and node.blend_type == 'MIX':
-        fac = gltf2_blender_get.get_const_from_socket(node.inputs['Fac'], kind='VALUE')
-        col1 = gltf2_blender_get.get_const_from_socket(node.inputs['Color1'], kind='RGB')
-        col2 = gltf2_blender_get.get_const_from_socket(node.inputs['Color2'], kind='RGB')
+    if node and node.type == "MIX_RGB" and node.blend_type == "MIX":
+        fac = gltf2_blender_get.get_const_from_socket(node.inputs["Fac"], kind="VALUE")
+        col1 = gltf2_blender_get.get_const_from_socket(
+            node.inputs["Color1"], kind="RGB"
+        )
+        col2 = gltf2_blender_get.get_const_from_socket(
+            node.inputs["Color2"], kind="RGB"
+        )
         if fac is not None:
             if col1 == [1, 1, 1] and col2 is None:
                 return fac
@@ -137,7 +171,9 @@ def __gather_occlusion_strength(primary_socket, export_settings):
 
 def __gather_index(blender_shader_sockets, export_settings):
     # We just put the actual shader into the 'index' member
-    return gltf2_blender_gather_texture.gather_texture(blender_shader_sockets, export_settings)
+    return gltf2_blender_gather_texture.gather_texture(
+        blender_shader_sockets, export_settings
+    )
 
 
 def __gather_texture_transform_and_tex_coord(primary_socket, export_settings):
@@ -152,17 +188,19 @@ def __gather_texture_transform_and_tex_coord(primary_socket, export_settings):
     # Skip over UV wrapping stuff (it goes in the sampler)
     result = detect_manual_uv_wrapping(blender_shader_node)
     if result:
-        node = previous_node(result['next_socket'])
+        node = previous_node(result["next_socket"])
     else:
-        node = previous_node(blender_shader_node.inputs['Vector'])
+        node = previous_node(blender_shader_node.inputs["Vector"])
 
     texture_transform = None
-    if node and node.type == 'MAPPING':
-        texture_transform = gltf2_blender_get.get_texture_transform_from_mapping_node(node)
-        node = previous_node(node.inputs['Vector'])
+    if node and node.type == "MAPPING":
+        texture_transform = gltf2_blender_get.get_texture_transform_from_mapping_node(
+            node
+        )
+        node = previous_node(node.inputs["Vector"])
 
     texcoord_idx = 0
-    if node and node.type == 'UVMAP' and node.uv_map:
+    if node and node.type == "UVMAP" and node.uv_map:
         # Try to gather map index.
         for blender_mesh in bpy.data.meshes:
             i = blender_mesh.uv_layers.find(node.uv_map)
@@ -176,7 +214,8 @@ def __gather_texture_transform_and_tex_coord(primary_socket, export_settings):
 def __get_tex_from_socket(socket):
     result = gltf2_blender_search_node_tree.from_socket(
         socket,
-        gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage))
+        gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage),
+    )
     if not result:
         return None
     if result[0].shader_node.image is None:

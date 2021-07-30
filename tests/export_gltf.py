@@ -19,13 +19,13 @@ import sys
 try:
     argv = sys.argv
     if "--" in argv:
-        argv = argv[argv.index("--") + 1:]  # get all args after "--"
+        argv = argv[argv.index("--") + 1 :]  # get all args after "--"
     else:
         argv = []
 
-    extension = '.gltf'
-    if '--glb' in argv:
-        extension = '.glb'
+    extension = ".gltf"
+    if "--glb" in argv:
+        extension = ".glb"
 
     path = os.path.splitext(bpy.data.filepath)[0] + extension
     path_parts = os.path.split(path)
@@ -34,11 +34,12 @@ try:
         os.makedirs(output_dir)
     args = {
         # Settings from "Remember Export Settings"
-        **dict(bpy.context.scene.get('glTF2ExportSettings', {})), # This may cause issues down the line - since the test .blend files were saved with the glTF2ExportSettings property, but we use glTF2MSFSExportSettings
-
-        'export_format': ('GLB' if extension == '.glb' else 'GLTF_SEPARATE'),
-        'filepath': os.path.join(output_dir, path_parts[1]),
-        'emulate_asobo_optimization': False,
+        **dict(
+            bpy.context.scene.get("glTF2ExportSettings", {})
+        ),  # This may cause issues down the line - since the test .blend files were saved with the glTF2ExportSettings property, but we use glTF2MSFSExportSettings
+        "export_format": ("GLB" if extension == ".glb" else "GLTF_SEPARATE"),
+        "filepath": os.path.join(output_dir, path_parts[1]),
+        "emulate_asobo_optimization": False,
     }
     bpy.ops.export_scene.gltf_msfs(**args)
 except Exception as err:

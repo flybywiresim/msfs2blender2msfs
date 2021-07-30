@@ -25,7 +25,9 @@ class Buffer:
         self.__data = bytearray(b"")
         self.__buffer_index = buffer_index
 
-    def add_and_get_view(self, binary_data: gltf2_io_binary_data.BinaryData) -> gltf2_io.BufferView:
+    def add_and_get_view(
+        self, binary_data: gltf2_io_binary_data.BinaryData
+    ) -> gltf2_io.BufferView:
         """Add binary data to the buffer. Return a glTF BufferView."""
         offset = len(self.__data)
         self.__data.extend(binary_data.data)
@@ -44,7 +46,7 @@ class Buffer:
             extensions=None,
             extras=None,
             name=None,
-            target=None
+            target=None,
         )
         return buffer_view
 
@@ -67,7 +69,9 @@ class Buffer:
         return self.__data
 
     def to_embed_string(self):
-        return 'data:application/octet-stream;base64,' + base64.b64encode(self.__data).decode('ascii')
+        return "data:application/octet-stream;base64," + base64.b64encode(
+            self.__data
+        ).decode("ascii")
 
     def clear(self):
         self.__data = b""

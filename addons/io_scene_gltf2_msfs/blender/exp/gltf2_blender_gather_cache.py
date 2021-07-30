@@ -25,9 +25,12 @@ def cached(func):
     :param func: the function to be decorated. It will have a static __cache member afterwards
     :return:
     """
+
     @functools.wraps(func)
     def wrapper_cached(*args, **kwargs):
-        assert len(args) >= 2 and 0 <= len(kwargs) <= 1, "Wrong signature for cached function"
+        assert (
+            len(args) >= 2 and 0 <= len(kwargs) <= 1
+        ), "Wrong signature for cached function"
         cache_key_args = args
         # make a shallow copy of the keyword arguments so that 'export_settings' can be removed
         cache_key_kwargs = dict(kwargs)
@@ -39,7 +42,14 @@ def cached(func):
             export_settings = args[-1]
             cache_key_args = args[:-1]
 
-        __by_name = [bpy.types.Object, bpy.types.Scene, bpy.types.Material, bpy.types.Action, bpy.types.Mesh, bpy.types.PoseBone]
+        __by_name = [
+            bpy.types.Object,
+            bpy.types.Scene,
+            bpy.types.Material,
+            bpy.types.Action,
+            bpy.types.Mesh,
+            bpy.types.PoseBone,
+        ]
 
         # we make a tuple from the function arguments so that they can be used as a key to the cache
         cache_key = ()
@@ -55,7 +65,10 @@ def cached(func):
                 cache_key += (i,)
 
         # invalidate cache if export settings have changed
-        if not hasattr(func, "__export_settings") or export_settings != func.__export_settings:
+        if (
+            not hasattr(func, "__export_settings")
+            or export_settings != func.__export_settings
+        ):
             func.__cache = {}
             func.__export_settings = export_settings
         # use or fill cache
@@ -65,10 +78,11 @@ def cached(func):
             result = func(*args)
             func.__cache[cache_key] = result
             return result
+
     return wrapper_cached
 
-def bonecache(func):
 
+def bonecache(func):
     def reset_cache_bonecache():
         func.__current_action_name = None
         func.__current_armature_name = None
@@ -79,14 +93,18 @@ def bonecache(func):
     @functools.wraps(func)
     def wrapper_bonecache(*args, **kwargs):
         if args[2] is None:
-            pose_bone_if_armature = gltf2_blender_get.get_object_from_datapath(args[0],
-                                                                args[1][0].data_path)
+            pose_bone_if_armature = gltf2_blender_get.get_object_from_datapath(
+                args[0], args[1][0].data_path
+            )
         else:
             pose_bone_if_armature = args[0].pose.bones[args[2]]
 
         if not hasattr(func, "__current_action_name"):
             func.reset_cache()
-        if args[6] != func.__current_action_name or args[0] != func.__current_armature_name:
+        if (
+            args[6] != func.__current_action_name
+            or args[0] != func.__current_armature_name
+        ):
             result = func(*args)
             func.__bonecache = result
             func.__current_action_name = args[6]
@@ -94,14 +112,16 @@ def bonecache(func):
             return result[args[7]][pose_bone_if_armature.name]
         else:
             return func.__bonecache[args[7]][pose_bone_if_armature.name]
+
     return wrapper_bonecache
+
 
 # TODO: replace "cached" with "unique" in all cases where the caching is functional and not only for performance reasons
 call_or_fetch = cached
 unique = cached
 
-def skdriverdiscovercache(func):
 
+def skdriverdiscovercache(func):
     def reset_cache_skdriverdiscovercache():
         func.__current_armature_name = None
         func.__skdriverdiscover = {}
@@ -110,7 +130,10 @@ def skdriverdiscovercache(func):
 
     @functools.wraps(func)
     def wrapper_skdriverdiscover(*args, **kwargs):
-        if not hasattr(func, "__current_armature_name") or func.__current_armature_name is None:
+        if (
+            not hasattr(func, "__current_armature_name")
+            or func.__current_armature_name is None
+        ):
             func.reset_cache()
 
         if args[0] != func.__current_armature_name:
@@ -120,10 +143,11 @@ def skdriverdiscovercache(func):
             return result
         else:
             return func.__skdriverdiscover[args[0]]
+
     return wrapper_skdriverdiscover
 
-def skdrivervalues(func):
 
+def skdrivervalues(func):
     def reset_cache_skdrivervalues():
         func.__skdrivervalues = {}
 
@@ -142,4 +166,5 @@ def skdrivervalues(func):
             return vals
         else:
             return func.__skdrivervalues[args[0].name][args[1]]
+
     return wrapper_skdrivervalues

@@ -20,8 +20,9 @@ from .gltf2_blender_vnode import VNode, compute_vnodes
 from ..com.gltf2_blender_extras import set_extras
 
 
-class BlenderScene():
+class BlenderScene:
     """Blender Scene."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -30,9 +31,11 @@ class BlenderScene():
         """Scene creation."""
         scene = bpy.context.scene
         gltf.blender_scene = scene.name
-        if bpy.context.collection.name in bpy.data.collections: # avoid master collection
+        if (
+            bpy.context.collection.name in bpy.data.collections
+        ):  # avoid master collection
             gltf.blender_active_collection = bpy.context.collection.name
-        if scene.render.engine not in ['CYCLES', 'BLENDER_EEVEE']:
+        if scene.render.engine not in ["CYCLES", "BLENDER_EEVEE"]:
             scene.render.engine = "BLENDER_EEVEE"
 
         if gltf.data.scene is not None:
@@ -42,12 +45,12 @@ class BlenderScene():
         compute_vnodes(gltf)
 
         gltf.display_current_node = 0  # for debugging
-        BlenderNode.create_vnode(gltf, 'root')
+        BlenderNode.create_vnode(gltf, "root")
 
         BlenderScene.create_animations(gltf)
 
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
+        if bpy.context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
         BlenderScene.select_imported_objects(gltf)
         BlenderScene.set_active_object(gltf)
 
@@ -64,7 +67,7 @@ class BlenderScene():
     def select_imported_objects(gltf):
         """Select all (and only) the imported objects."""
         if bpy.ops.object.select_all.poll():
-           bpy.ops.object.select_all(action='DESELECT')
+            bpy.ops.object.select_all(action="DESELECT")
 
         for vnode in gltf.vnodes.values():
             if vnode.type == VNode.Object:
@@ -89,7 +92,7 @@ class BlenderScene():
                     break
 
         if not vnode:
-            vnode = gltf.vnodes['root']
+            vnode = gltf.vnodes["root"]
             if vnode.type == VNode.DummyRoot:
                 if not vnode.children:
                     return  # no nodes

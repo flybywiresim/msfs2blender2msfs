@@ -18,71 +18,74 @@ from math import pi
 from ..com.gltf2_blender_extras import set_extras
 
 
-class BlenderLight():
+class BlenderLight:
     """Blender Light."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
     @staticmethod
     def create(gltf, light_id):
         """Light creation."""
-        pylight = gltf.data.extensions['KHR_lights_punctual']['lights'][light_id]
-        if pylight['type'] == "directional":
+        pylight = gltf.data.extensions["KHR_lights_punctual"]["lights"][light_id]
+        if pylight["type"] == "directional":
             light = BlenderLight.create_directional(gltf, light_id)
-        elif pylight['type'] == "point":
+        elif pylight["type"] == "point":
             light = BlenderLight.create_point(gltf, light_id)
-        elif pylight['type'] == "spot":
+        elif pylight["type"] == "spot":
             light = BlenderLight.create_spot(gltf, light_id)
 
-        if 'color' in pylight.keys():
-            light.color = pylight['color']
+        if "color" in pylight.keys():
+            light.color = pylight["color"]
 
-        if 'intensity' in pylight.keys():
-            light.energy = pylight['intensity']
+        if "intensity" in pylight.keys():
+            light.energy = pylight["intensity"]
 
         # TODO range
 
-        set_extras(light, pylight.get('extras'))
+        set_extras(light, pylight.get("extras"))
 
         return light
 
     @staticmethod
     def create_directional(gltf, light_id):
-        pylight = gltf.data.extensions['KHR_lights_punctual']['lights'][light_id]
+        pylight = gltf.data.extensions["KHR_lights_punctual"]["lights"][light_id]
 
-        if 'name' not in pylight.keys():
-            pylight['name'] = "Sun"
+        if "name" not in pylight.keys():
+            pylight["name"] = "Sun"
 
-        sun = bpy.data.lights.new(name=pylight['name'], type="SUN")
+        sun = bpy.data.lights.new(name=pylight["name"], type="SUN")
         return sun
 
     @staticmethod
     def create_point(gltf, light_id):
-        pylight = gltf.data.extensions['KHR_lights_punctual']['lights'][light_id]
+        pylight = gltf.data.extensions["KHR_lights_punctual"]["lights"][light_id]
 
-        if 'name' not in pylight.keys():
-            pylight['name'] = "Point"
+        if "name" not in pylight.keys():
+            pylight["name"] = "Point"
 
-        point = bpy.data.lights.new(name=pylight['name'], type="POINT")
+        point = bpy.data.lights.new(name=pylight["name"], type="POINT")
         return point
 
     @staticmethod
     def create_spot(gltf, light_id):
-        pylight = gltf.data.extensions['KHR_lights_punctual']['lights'][light_id]
+        pylight = gltf.data.extensions["KHR_lights_punctual"]["lights"][light_id]
 
-        if 'name' not in pylight.keys():
-            pylight['name'] = "Spot"
+        if "name" not in pylight.keys():
+            pylight["name"] = "Spot"
 
-        spot = bpy.data.lights.new(name=pylight['name'], type="SPOT")
+        spot = bpy.data.lights.new(name=pylight["name"], type="SPOT")
 
         # Angles
-        if 'spot' in pylight.keys() and 'outerConeAngle' in pylight['spot']:
-            spot.spot_size = pylight['spot']['outerConeAngle'] * 2
+        if "spot" in pylight.keys() and "outerConeAngle" in pylight["spot"]:
+            spot.spot_size = pylight["spot"]["outerConeAngle"] * 2
         else:
             spot.spot_size = pi / 2
 
-        if 'spot' in pylight.keys() and 'innerConeAngle' in pylight['spot']:
-            spot.spot_blend = 1 - ( pylight['spot']['innerConeAngle'] / pylight['spot']['outerConeAngle'] )
+        if "spot" in pylight.keys() and "innerConeAngle" in pylight["spot"]:
+            spot.spot_blend = 1 - (
+                pylight["spot"]["innerConeAngle"] / pylight["spot"]["outerConeAngle"]
+            )
         else:
             spot.spot_blend = 1.0
 

@@ -13,8 +13,13 @@
 # limitations under the License.
 
 
-from io_scene_gltf2_msfs.blender.exp.gltf2_blender_gather_cache import skdriverdiscovercache, skdrivervalues
-from io_scene_gltf2_msfs.blender.com.gltf2_blender_data_path import get_target_object_path
+from io_scene_gltf2_msfs.blender.exp.gltf2_blender_gather_cache import (
+    skdriverdiscovercache,
+    skdrivervalues,
+)
+from io_scene_gltf2_msfs.blender.com.gltf2_blender_data_path import (
+    get_target_object_path,
+)
 
 
 @skdriverdiscovercache
@@ -26,7 +31,7 @@ def get_sk_drivers(blender_armature):
         if not child.data:
             continue
         # child.data can be an armature - which has no shapekeys
-        if not hasattr(child.data, 'shape_keys'):
+        if not hasattr(child.data, "shape_keys"):
             continue
         if not child.data.shape_keys:
             continue
@@ -51,11 +56,9 @@ def get_sk_drivers(blender_armature):
         idx_channel_mapping = []
         all_sorted_channels = []
         for sk_c in child.data.shape_keys.animation_data.drivers:
-            # Check if driver is valid. If not, ignore this driver channel
-            try:
-                sk_name = child.data.shape_keys.path_resolve(get_target_object_path(sk_c.data_path)).name
-            except:
-                continue
+            sk_name = child.data.shape_keys.path_resolve(
+                get_target_object_path(sk_c.data_path)
+            ).name
             idx = shapekeys_idx[sk_name]
             idx_channel_mapping.append((shapekeys_idx[sk_name], sk_c))
         existing_idx = dict(idx_channel_mapping)
@@ -69,10 +72,15 @@ def get_sk_drivers(blender_armature):
 
     return tuple(drivers)
 
+
 @skdrivervalues
 def get_sk_driver_values(blender_object, frame, fcurves):
     sk_values = []
     for f in [f for f in fcurves if f is not None]:
-        sk_values.append(blender_object.data.shape_keys.path_resolve(get_target_object_path(f.data_path)).value)
+        sk_values.append(
+            blender_object.data.shape_keys.path_resolve(
+                get_target_object_path(f.data_path)
+            ).value
+        )
 
     return tuple(sk_values)

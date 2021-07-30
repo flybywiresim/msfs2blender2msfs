@@ -38,7 +38,9 @@ def gather_sampler(blender_shader_node: bpy.types.Node, export_settings):
         wrap_t=wrap_t,
     )
 
-    export_user_extensions('gather_sampler_hook', export_settings, sampler, blender_shader_node)
+    export_user_extensions(
+        "gather_sampler_hook", export_settings, sampler, blender_shader_node
+    )
 
     if not sampler.extensions and not sampler.extras and not sampler.name:
         return __sampler_by_value(
@@ -75,13 +77,13 @@ def __gather_extras(blender_shader_node, export_settings):
 
 
 def __gather_mag_filter(blender_shader_node, export_settings):
-    if blender_shader_node.interpolation == 'Closest':
+    if blender_shader_node.interpolation == "Closest":
         return TextureFilter.Nearest
     return TextureFilter.Linear
 
 
 def __gather_min_filter(blender_shader_node, export_settings):
-    if blender_shader_node.interpolation == 'Closest':
+    if blender_shader_node.interpolation == "Closest":
         return TextureFilter.NearestMipmapNearest
     return TextureFilter.LinearMipmapLinear
 
@@ -92,9 +94,9 @@ def __gather_name(blender_shader_node, export_settings):
 
 def __gather_wrap(blender_shader_node, export_settings):
     # First gather from the Texture node
-    if blender_shader_node.extension == 'EXTEND':
+    if blender_shader_node.extension == "EXTEND":
         wrap_s = TextureWrap.ClampToEdge
-    elif blender_shader_node.extension == 'CLIP':
+    elif blender_shader_node.extension == "CLIP":
         # Not possible in glTF, but ClampToEdge is closest
         wrap_s = TextureWrap.ClampToEdge
     else:
@@ -104,8 +106,10 @@ def __gather_wrap(blender_shader_node, export_settings):
     # Take manual wrapping into account
     result = detect_manual_uv_wrapping(blender_shader_node)
     if result:
-        if result['wrap_s'] is not None: wrap_s = result['wrap_s']
-        if result['wrap_t'] is not None: wrap_t = result['wrap_t']
+        if result["wrap_s"] is not None:
+            wrap_s = result["wrap_s"]
+        if result["wrap_t"] is not None:
+            wrap_t = result["wrap_t"]
 
     # Omit if both are repeat
     if (wrap_s, wrap_t) == (TextureWrap.Repeat, TextureWrap.Repeat):
@@ -128,25 +132,32 @@ def detect_manual_uv_wrapping(blender_shader_node):
     # mode in each direction (or None), and next_socket.
     result = {}
 
-    comb = previous_node(blender_shader_node.inputs['Vector'])
-    if comb is None or comb.type != 'COMBXYZ': return None
+    comb = previous_node(blender_shader_node.inputs["Vector"])
+    if comb is None or comb.type != "COMBXYZ":
+        return None
 
-    for soc in ['X', 'Y']:
+    for soc in ["X", "Y"]:
         node = previous_node(comb.inputs[soc])
-        if node is None: return None
+        if node is None:
+            return None
 
-        if node.type == 'SEPXYZ':
+        if node.type == "SEPXYZ":
             # Passed through without change
             wrap = None
             prev_socket = previous_socket(comb.inputs[soc])
-        elif node.type == 'MATH':
+        elif node.type == "MATH":
             # Math node applies a manual wrap
-            if (node.operation == 'PINGPONG' and
-                    get_const_from_socket(node.inputs[1], kind='VALUE') == 1.0):  # scale = 1
+            if (
+                node.operation == "PINGPONG"
+                and get_const_from_socket(node.inputs[1], kind="VALUE") == 1.0
+            ):  # scale = 1
                 wrap = TextureWrap.MirroredRepeat
-            elif (node.operation == 'WRAP' and
-                    get_const_from_socket(node.inputs[1], kind='VALUE') == 0.0 and  # min = 0
-                    get_const_from_socket(node.inputs[2], kind='VALUE') == 1.0):    # max = 1
+            elif (
+                node.operation == "WRAP"
+                and get_const_from_socket(node.inputs[1], kind="VALUE") == 0.0
+                and get_const_from_socket(node.inputs[2], kind="VALUE")  # min = 0
+                == 1.0
+            ):  # max = 1
                 wrap = TextureWrap.Repeat
             else:
                 return None
@@ -155,18 +166,22 @@ def detect_manual_uv_wrapping(blender_shader_node):
         else:
             return None
 
-        if prev_socket is None: return None
+        if prev_socket is None:
+            return None
         prev_node = prev_socket.node
-        if prev_node.type != 'SEPXYZ': return None
+        if prev_node.type != "SEPXYZ":
+            return None
         # Make sure X goes to X, etc.
-        if prev_socket.name != soc: return None
+        if prev_socket.name != soc:
+            return None
         # Make sure both attach to the same SeparateXYZ node
-        if soc == 'X':
+        if soc == "X":
             sep = prev_node
         else:
-            if sep != prev_node: return None
+            if sep != prev_node:
+                return None
 
-        result['wrap_s' if soc == 'X' else 'wrap_t'] = wrap
+        result["wrap_s" if soc == "X" else "wrap_t"] = wrap
 
-    result['next_socket'] = sep.inputs[0]
+    result["next_socket"] = sep.inputs[0]
     return result

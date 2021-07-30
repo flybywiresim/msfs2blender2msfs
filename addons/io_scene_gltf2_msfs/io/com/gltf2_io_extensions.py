@@ -17,6 +17,7 @@ from typing import List, Dict, Any
 
 class Extension:
     """Container for extensions. Allows to specify requiredness"""
+
     def __init__(self, name: str, extension: Dict[str, Any], required: bool = True):
         self.name = name
         self.extension = extension
@@ -25,7 +26,14 @@ class Extension:
 
 class ChildOfRootExtension(Extension):
     """Container object for extensions that should be appended to the root extensions"""
-    def __init__(self, path: List[str], name: str, extension: Dict[str, Any], required: bool = True):
+
+    def __init__(
+        self,
+        path: List[str],
+        name: str,
+        extension: Dict[str, Any],
+        required: bool = True,
+    ):
         """
         Wrap a local extension entity into an object that will later be inserted into a root extension and converted
         to a reference.

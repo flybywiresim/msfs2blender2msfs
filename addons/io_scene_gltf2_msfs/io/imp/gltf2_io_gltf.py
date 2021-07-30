@@ -27,7 +27,7 @@ class ImportError(RuntimeError):
     pass
 
 
-class glTFImporter():
+class glTFImporter:
     """glTF Importer class."""
 
     def __init__(self, filename, import_settings, addon_settings):
@@ -41,53 +41,61 @@ class glTFImporter():
         self.decode_accessor_cache = {}
         self.texture_path_cache = []
 
-        if 'loglevel' not in self.import_settings.keys():
-            self.import_settings['loglevel'] = logging.ERROR
+        if "loglevel" not in self.import_settings.keys():
+            self.import_settings["loglevel"] = logging.ERROR
 
-        log = Log(import_settings['loglevel'])
+        log = Log(import_settings["loglevel"])
         self.log = log.logger
         self.log_handler = log.hdlr
 
         # TODO: move to a com place?
         self.extensions_managed = [
-            'KHR_materials_pbrSpecularGlossiness',
-            'KHR_lights_punctual',
-            'KHR_materials_unlit',
-            'KHR_texture_transform',
-            'KHR_materials_clearcoat',
-            'KHR_mesh_quantization',
-            'KHR_draco_mesh_compression',
-            'MSFT_texture_dds'
+            "KHR_materials_pbrSpecularGlossiness",
+            "KHR_lights_punctual",
+            "KHR_materials_unlit",
+            "KHR_texture_transform",
+            "KHR_materials_clearcoat",
+            "KHR_mesh_quantization",
+            "KHR_draco_mesh_compression",
+            "MSFT_texture_dds",
         ]
 
     @staticmethod
     def load_json(content):
         def bad_constant(val):
-            raise ImportError('Bad glTF: json contained %s' % val)
+            raise ImportError("Bad glTF: json contained %s" % val)
+
         try:
-            text = str(content, encoding='utf-8')
+            text = str(content, encoding="utf-8")
             return json.loads(text, parse_constant=bad_constant)
         except ValueError as e:
-            raise ImportError('Bad glTF: json error: %s' % e.args[0])
+            raise ImportError("Bad glTF: json error: %s" % e.args[0])
 
     @staticmethod
     def check_version(gltf):
         """Check version. This is done *before* gltf_from_dict."""
-        if not isinstance(gltf, dict) or 'asset' not in gltf:
+        if not isinstance(gltf, dict) or "asset" not in gltf:
             raise ImportError("Bad glTF: no asset in json")
-        if 'version' not in gltf['asset']:
+        if "version" not in gltf["asset"]:
             raise ImportError("Bad glTF: no version")
-        if gltf['asset']['version'] != "2.0":
-            raise ImportError("glTF version must be 2.0; got %s" % gltf['asset']['version'])
+        if gltf["asset"]["version"] != "2.0":
+            raise ImportError(
+                "glTF version must be 2.0; got %s" % gltf["asset"]["version"]
+            )
 
     def checks(self):
         """Some checks."""
         if self.data.extensions_required is not None:
             for extension in self.data.extensions_required:
                 if extension not in self.data.extensions_used:
-                    raise ImportError("Extension required must be in Extension Used too")
+                    raise ImportError(
+                        "Extension required must be in Extension Used too"
+                    )
                 if extension not in self.extensions_managed:
-                    raise ImportError("Extension %s is not available on this addon version" % extension)
+                    raise ImportError(
+                        "Extension %s is not available on this addon version"
+                        % extension
+                    )
 
         if self.data.extensions_used is not None:
             for extension in self.data.extensions_used:
@@ -98,10 +106,10 @@ class glTFImporter():
     def load_glb(self, content):
         """Load binary glb."""
         magic = content[:4]
-        if magic != b'glTF':
+        if magic != b"glTF":
             raise ImportError("This file is not a glTF/glb file")
 
-        version, file_size = struct.unpack_from('<II', content, offset=4)
+        version, file_size = struct.unpack_from("<II", content, offset=4)
         if version != 2:
             raise ImportError("GLB version must be 2; got %d" % version)
         if file_size != len(content):
@@ -130,10 +138,10 @@ class glTFImporter():
 
     def load_chunk(self, content, offset):
         """Load chunk."""
-        chunk_header = struct.unpack_from('<I4s', content, offset)
+        chunk_header = struct.unpack_from("<I4s", content, offset)
         data_length = chunk_header[0]
         data_type = chunk_header[1]
-        data = content[offset + 8: offset + 8 + data_length]
+        data = content[offset + 8 : offset + 8 + data_length]
 
         return data_type, data_length, data, offset + 8 + data_length
 
@@ -142,10 +150,10 @@ class glTFImporter():
         if not isfile(self.filename):
             raise ImportError("Please select a file")
 
-        with open(self.filename, 'rb') as f:
+        with open(self.filename, "rb") as f:
             content = memoryview(f.read())
 
-        if content[:4] == b'glTF':
+        if content[:4] == b"glTF":
             gltf, self.glb_buffer = self.load_glb(content)
         else:
             gltf = glTFImporter.load_json(content)
@@ -157,6 +165,7 @@ class glTFImporter():
             self.data = gltf_from_dict(gltf)
         except AssertionError:
             import traceback
+
             traceback.print_exc()
             raise ImportError("Couldn't parse glTF. Check that the file is valid")
 
@@ -170,7 +179,6 @@ class glTFImporter():
                 raise ImportError("Missing resource, '" + buffer.uri + "'.")
             self.buffers[buffer_idx] = data
 
-
         else:
             # GLB-stored buffer
             if buffer_idx == 0 and self.glb_buffer is not None:
@@ -178,16 +186,16 @@ class glTFImporter():
 
     def load_uri(self, uri):
         """Loads a URI."""
-        sep = ';base64,'
-        if uri.startswith('data:'):
+        sep = ";base64,"
+        if uri.startswith("data:"):
             idx = uri.find(sep)
             if idx != -1:
-                data = uri[idx + len(sep):]
+                data = uri[idx + len(sep) :]
                 return memoryview(base64.b64decode(data))
 
         path = join(dirname(self.filename), unquote(uri))
         try:
-            with open(path, 'rb') as f_:
+            with open(path, "rb") as f_:
                 return memoryview(f_.read())
         except Exception:
             self.log.error("Couldn't read file: " + path)

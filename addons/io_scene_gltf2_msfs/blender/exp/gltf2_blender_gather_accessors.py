@@ -20,13 +20,15 @@ from io_scene_gltf2_msfs.io.exp import gltf2_io_binary_data
 
 
 @cached
-def gather_accessor(buffer_view: gltf2_io_binary_data.BinaryData,
-                    component_type: gltf2_io_constants.ComponentType,
-                    count,
-                    max,
-                    min,
-                    type: gltf2_io_constants.DataType,
-                    export_settings) -> gltf2_io.Accessor:
+def gather_accessor(
+    buffer_view: gltf2_io_binary_data.BinaryData,
+    component_type: gltf2_io_constants.ComponentType,
+    count,
+    max,
+    min,
+    type: gltf2_io_constants.DataType,
+    export_settings,
+) -> gltf2_io.Accessor:
     return gltf2_io.Accessor(
         buffer_view=buffer_view,
         byte_offset=None,
@@ -39,5 +41,5 @@ def gather_accessor(buffer_view: gltf2_io_binary_data.BinaryData,
         name=None,
         normalized=None,
         sparse=None,
-        type=type
+        type=type,
     )

@@ -18,8 +18,9 @@ from ...io.imp.gltf2_io_binary import BinaryData
 from .gltf2_blender_animation_utils import make_fcurve
 
 
-class BlenderWeightAnim():
+class BlenderWeightAnim:
     """Blender ShapeKey Animation."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -53,8 +54,12 @@ class BlenderWeightAnim():
         action.id_root = "KEY"
         gltf.needs_stash.append((obj.data.shape_keys, action))
 
-        keys = BinaryData.get_data_from_accessor(gltf, animation.samplers[channel.sampler].input)
-        values = BinaryData.get_data_from_accessor(gltf, animation.samplers[channel.sampler].output)
+        keys = BinaryData.get_data_from_accessor(
+            gltf, animation.samplers[channel.sampler].input
+        )
+        values = BinaryData.get_data_from_accessor(
+            gltf, animation.samplers[channel.sampler].output
+        )
 
         # retrieve number of targets
         pymesh = gltf.data.meshes[gltf.data.nodes[node_idx].mesh]
@@ -71,10 +76,16 @@ class BlenderWeightAnim():
         coords[::2] = (key[0] * fps for key in keys)
 
         for sk in range(nb_targets):
-            if pymesh.shapekey_names[sk] is not None: # Do not animate shapekeys not created
-                coords[1::2] = (values[offset + stride * i + sk][0] for i in range(len(keys)))
+            if (
+                pymesh.shapekey_names[sk] is not None
+            ):  # Do not animate shapekeys not created
+                coords[1::2] = (
+                    values[offset + stride * i + sk][0] for i in range(len(keys))
+                )
                 kb_name = pymesh.shapekey_names[sk]
-                data_path = 'key_blocks["%s"].value' % bpy.utils.escape_identifier(kb_name)
+                data_path = 'key_blocks["%s"].value' % bpy.utils.escape_identifier(
+                    kb_name
+                )
 
                 make_fcurve(
                     action,
@@ -88,5 +99,7 @@ class BlenderWeightAnim():
                 kb = obj.data.shape_keys.key_blocks[kb_name]
                 min_weight = min(coords[1:2])
                 max_weight = max(coords[1:2])
-                if min_weight < kb.slider_min: kb.slider_min = min_weight
-                if max_weight > kb.slider_max: kb.slider_max = max_weight
+                if min_weight < kb.slider_min:
+                    kb.slider_min = min_weight
+                if max_weight > kb.slider_max:
+                    kb.slider_max = max_weight

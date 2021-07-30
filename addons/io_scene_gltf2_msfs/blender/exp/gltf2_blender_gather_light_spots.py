@@ -16,14 +16,16 @@ from typing import Optional
 from io_scene_gltf2_msfs.io.com import gltf2_io_lights_punctual
 
 
-def gather_light_spot(blender_lamp, export_settings) -> Optional[gltf2_io_lights_punctual.LightSpot]:
+def gather_light_spot(
+    blender_lamp, export_settings
+) -> Optional[gltf2_io_lights_punctual.LightSpot]:
 
     if not __filter_light_spot(blender_lamp, export_settings):
         return None
 
     spot = gltf2_io_lights_punctual.LightSpot(
         inner_cone_angle=__gather_inner_cone_angle(blender_lamp, export_settings),
-        outer_cone_angle=__gather_outer_cone_angle(blender_lamp, export_settings)
+        outer_cone_angle=__gather_outer_cone_angle(blender_lamp, export_settings),
     )
     return spot
 

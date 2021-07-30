@@ -20,43 +20,70 @@ from ...io.com.gltf2_io_debug import print_console
 from io_scene_gltf2_msfs.blender.exp import gltf2_blender_gather_skins
 
 
-def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vertex_groups, modifiers, export_settings):
+def extract_primitives(
+    glTF,
+    blender_mesh,
+    library,
+    blender_object,
+    blender_vertex_groups,
+    modifiers,
+    export_settings,
+):
     """Extract primitives from a mesh."""
-    print_console('INFO', 'Extracting primitive: ' + blender_mesh.name)
+    print_console("INFO", "Extracting primitive: " + blender_mesh.name)
 
     use_normals = export_settings[gltf2_blender_export_keys.NORMALS]
     if use_normals:
         blender_mesh.calc_normals_split()
 
     use_tangents = False
-    if use_normals and (export_settings[gltf2_blender_export_keys.TANGENTS] or export_settings['emulate_asobo_optimization']): # Always export tangents for optimized meshes
+    if use_normals and (
+        export_settings[gltf2_blender_export_keys.TANGENTS]
+        or export_settings["emulate_asobo_optimization"]
+    ):  # Always export tangents for optimized meshes
         if blender_mesh.uv_layers.active and len(blender_mesh.uv_layers) > 0:
             try:
                 blender_mesh.calc_tangents()
                 use_tangents = True
             except Exception:
-                print_console('WARNING', 'Could not calculate tangents. Please try to triangulate the mesh first.')
+                print_console(
+                    "WARNING",
+                    "Could not calculate tangents. Please try to triangulate the mesh first.",
+                )
 
     tex_coord_max = 0
-    if export_settings[gltf2_blender_export_keys.TEX_COORDS] or export_settings['emulate_asobo_optimization']: # Always export tex coords for optimized meshes
+    if (
+        export_settings[gltf2_blender_export_keys.TEX_COORDS]
+        or export_settings["emulate_asobo_optimization"]
+    ):  # Always export tex coords for optimized meshes
         if blender_mesh.uv_layers.active:
             tex_coord_max = len(blender_mesh.uv_layers)
 
-            if export_settings['emulate_asobo_optimization']: # If we're emulating the optimization, we need to include at least two tex coord attributes
+            if export_settings[
+                "emulate_asobo_optimization"
+            ]:  # If we're emulating the optimization, we need to include at least two tex coord attributes
                 if tex_coord_max < 2:
                     tex_coord_max = 2
 
     color_max = 0
-    if export_settings[gltf2_blender_export_keys.COLORS] or export_settings['emulate_asobo_optimization']: # Always export colors for optimized meshes
+    if (
+        export_settings[gltf2_blender_export_keys.COLORS]
+        or export_settings["emulate_asobo_optimization"]
+    ):  # Always export colors for optimized meshes
         color_max = len(blender_mesh.vertex_colors)
-        
-        if export_settings['emulate_asobo_optimization']: # If we're emulating the optimization, we need to include at least one color attribute
+
+        if export_settings[
+            "emulate_asobo_optimization"
+        ]:  # If we're emulating the optimization, we need to include at least one color attribute
             if color_max == 0:
                 color_max = 1
 
     armature = None
     skin = None
-    if blender_vertex_groups and (export_settings[gltf2_blender_export_keys.SKINS] or export_settings['emulate_asobo_optimization']): # Always export skins for optimized meshes
+    if blender_vertex_groups and (
+        export_settings[gltf2_blender_export_keys.SKINS]
+        or export_settings["emulate_asobo_optimization"]
+    ):  # Always export skins for optimized meshes
         if modifiers is not None:
             modifiers_dict = {m.type: m for m in modifiers}
             if "ARMATURE" in modifiers_dict:
@@ -67,10 +94,10 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
         # (This creates an infinite recursive error)
         # So ignoring skin in that case
         is_child_of_arma = (
-            armature and
-            blender_object and
-            blender_object.parent_type == "BONE" and
-            blender_object.parent.name == armature.name
+            armature
+            and blender_object
+            and blender_object.parent_type == "BONE"
+            and blender_object.parent.name == armature.name
         )
         if is_child_of_arma:
             armature = None
@@ -80,8 +107,17 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
             if not skin:
                 armature = None
 
-    use_morph_normals = use_normals and export_settings[gltf2_blender_export_keys.MORPH_NORMAL] and not export_settings['emulate_asobo_optimization'] # MSFS doesn't support morph targets
-    use_morph_tangents = use_morph_normals and use_tangents and export_settings[gltf2_blender_export_keys.MORPH_TANGENT] and not export_settings['emulate_asobo_optimization']
+    use_morph_normals = (
+        use_normals
+        and export_settings[gltf2_blender_export_keys.MORPH_NORMAL]
+        and not export_settings["emulate_asobo_optimization"]
+    )  # MSFS doesn't support morph targets
+    use_morph_tangents = (
+        use_morph_normals
+        and use_tangents
+        and export_settings[gltf2_blender_export_keys.MORPH_TANGENT]
+        and not export_settings["emulate_asobo_optimization"]
+    )
 
     key_blocks = []
     if blender_mesh.shape_keys and export_settings[gltf2_blender_export_keys.MORPH]:
@@ -95,9 +131,13 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
 
     # Fetch vert positions and bone data (joint,weights)
 
-    locs, morph_locs = __get_positions(blender_mesh, key_blocks, armature, blender_object, export_settings)
+    locs, morph_locs = __get_positions(
+        blender_mesh, key_blocks, armature, blender_object, export_settings
+    )
     if skin:
-        vert_bones, num_joint_sets = __get_bone_data(blender_mesh, skin, blender_vertex_groups)
+        vert_bones, num_joint_sets = __get_bone_data(
+            blender_mesh, skin, blender_vertex_groups
+        )
 
     # In Blender there is both per-vert data, like position, and also per-loop
     # (loop=corner-of-poly) data, like normals or UVs. glTF only has per-vert
@@ -111,33 +151,38 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
     # Each unique dot will become one unique glTF vert.
 
     # List all fields the dot struct needs.
-    dot_fields = [('vertex_index', np.uint32)]
+    dot_fields = [("vertex_index", np.uint32)]
     if use_normals:
-        dot_fields += [('nx', np.float32), ('ny', np.float32), ('nz', np.float32)]
+        dot_fields += [("nx", np.float32), ("ny", np.float32), ("nz", np.float32)]
     if use_tangents:
-        dot_fields += [('tx', np.float32), ('ty', np.float32), ('tz', np.float32), ('tw', np.float32)]
+        dot_fields += [
+            ("tx", np.float32),
+            ("ty", np.float32),
+            ("tz", np.float32),
+            ("tw", np.float32),
+        ]
     for uv_i in range(tex_coord_max):
-        dot_fields += [('uv%dx' % uv_i, np.float32), ('uv%dy' % uv_i, np.float32)]
+        dot_fields += [("uv%dx" % uv_i, np.float32), ("uv%dy" % uv_i, np.float32)]
     for col_i in range(color_max):
         dot_fields += [
-            ('color%dr' % col_i, np.float32),
-            ('color%dg' % col_i, np.float32),
-            ('color%db' % col_i, np.float32),
-            ('color%da' % col_i, np.float32),
+            ("color%dr" % col_i, np.float32),
+            ("color%dg" % col_i, np.float32),
+            ("color%db" % col_i, np.float32),
+            ("color%da" % col_i, np.float32),
         ]
     if use_morph_normals:
         for morph_i, _ in enumerate(key_blocks):
             dot_fields += [
-                ('morph%dnx' % morph_i, np.float32),
-                ('morph%dny' % morph_i, np.float32),
-                ('morph%dnz' % morph_i, np.float32),
+                ("morph%dnx" % morph_i, np.float32),
+                ("morph%dny" % morph_i, np.float32),
+                ("morph%dnz" % morph_i, np.float32),
             ]
 
     dots = np.empty(len(blender_mesh.loops), dtype=np.dtype(dot_fields))
 
     vidxs = np.empty(len(blender_mesh.loops))
-    blender_mesh.loops.foreach_get('vertex_index', vidxs)
-    dots['vertex_index'] = vidxs
+    blender_mesh.loops.foreach_get("vertex_index", vidxs)
+    dots["vertex_index"] = vidxs
     del vidxs
 
     if use_normals:
@@ -145,49 +190,55 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
         normals, morph_normals = __get_normals(
             blender_mesh, kbs, armature, blender_object, export_settings
         )
-        dots['nx'] = normals[:, 0]
-        dots['ny'] = normals[:, 1]
-        dots['nz'] = normals[:, 2]
+        dots["nx"] = normals[:, 0]
+        dots["ny"] = normals[:, 1]
+        dots["nz"] = normals[:, 2]
         del normals
         for morph_i, ns in enumerate(morph_normals):
-            dots['morph%dnx' % morph_i] = ns[:, 0]
-            dots['morph%dny' % morph_i] = ns[:, 1]
-            dots['morph%dnz' % morph_i] = ns[:, 2]
+            dots["morph%dnx" % morph_i] = ns[:, 0]
+            dots["morph%dny" % morph_i] = ns[:, 1]
+            dots["morph%dnz" % morph_i] = ns[:, 2]
         del morph_normals
 
     if use_tangents:
-        tangents = __get_tangents(blender_mesh, armature, blender_object, export_settings)
-        dots['tx'] = tangents[:, 0]
-        dots['ty'] = tangents[:, 1]
-        dots['tz'] = tangents[:, 2]
+        tangents = __get_tangents(
+            blender_mesh, armature, blender_object, export_settings
+        )
+        dots["tx"] = tangents[:, 0]
+        dots["ty"] = tangents[:, 1]
+        dots["tz"] = tangents[:, 2]
         del tangents
-        signs = __get_bitangent_signs(blender_mesh, armature, blender_object, export_settings)
-        dots['tw'] = signs
+        signs = __get_bitangent_signs(
+            blender_mesh, armature, blender_object, export_settings
+        )
+        dots["tw"] = signs
         del signs
 
     for uv_i in range(tex_coord_max):
         uvs = __get_uvs(blender_mesh, uv_i, export_settings)
-        dots['uv%dx' % uv_i] = uvs[:, 0]
-        dots['uv%dy' % uv_i] = uvs[:, 1]
+        dots["uv%dx" % uv_i] = uvs[:, 0]
+        dots["uv%dy" % uv_i] = uvs[:, 1]
         del uvs
 
     for col_i in range(color_max):
         colors = __get_colors(blender_mesh, col_i, export_settings)
-        dots['color%dr' % col_i] = colors[:, 0]
-        dots['color%dg' % col_i] = colors[:, 1]
-        dots['color%db' % col_i] = colors[:, 2]
-        dots['color%da' % col_i] = colors[:, 3]
+        dots["color%dr" % col_i] = colors[:, 0]
+        dots["color%dg" % col_i] = colors[:, 1]
+        dots["color%db" % col_i] = colors[:, 2]
+        dots["color%da" % col_i] = colors[:, 3]
         del colors
 
     # Calculate triangles and sort them into primitives.
 
     blender_mesh.calc_loop_triangles()
     loop_indices = np.empty(len(blender_mesh.loop_triangles) * 3, dtype=np.uint32)
-    blender_mesh.loop_triangles.foreach_get('loops', loop_indices)
+    blender_mesh.loop_triangles.foreach_get("loops", loop_indices)
 
     prim_indices = {}  # maps material index to TRIANGLES-style indices into dots
 
-    if use_materials == "NONE": # Only for None. For placeholder and export, keep primitives
+    if (
+        use_materials == "NONE"
+    ):  # Only for None. For placeholder and export, keep primitives
         # Put all vertices into one primitive
         prim_indices[-1] = loop_indices
 
@@ -195,13 +246,17 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
         # Bucket by material index.
 
         tri_material_idxs = np.empty(len(blender_mesh.loop_triangles), dtype=np.uint32)
-        blender_mesh.loop_triangles.foreach_get('material_index', tri_material_idxs)
-        loop_material_idxs = np.repeat(tri_material_idxs, 3)  # material index for every loop
+        blender_mesh.loop_triangles.foreach_get("material_index", tri_material_idxs)
+        loop_material_idxs = np.repeat(
+            tri_material_idxs, 3
+        )  # material index for every loop
         unique_material_idxs = np.unique(tri_material_idxs)
         del tri_material_idxs
 
         for material_idx in unique_material_idxs:
-            prim_indices[material_idx] = loop_indices[loop_material_idxs == material_idx]
+            prim_indices[material_idx] = loop_indices[
+                loop_material_idxs == material_idx
+            ]
 
     # Create all the primitives.
 
@@ -220,89 +275,102 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
 
         attributes = {}
 
-        blender_idxs = prim_dots['vertex_index']
+        blender_idxs = prim_dots["vertex_index"]
 
-        attributes['POSITION'] = locs[blender_idxs]
-
+        attributes["POSITION"] = locs[blender_idxs]
 
         vertex_type = None
-        if export_settings['emulate_asobo_optimization']:
+        if export_settings["emulate_asobo_optimization"]:
             for loc in locs[blender_idxs]:
                 location = Vector((loc[0], loc[1], loc[2]))
 
-                export_settings['bounding_box_max_x'] = max(location.x, export_settings['bounding_box_max_x'])
-                export_settings['bounding_box_max_y'] = max(location.y, export_settings['bounding_box_max_y'])
-                export_settings['bounding_box_max_z'] = max(location.z, export_settings['bounding_box_max_z'])
-                export_settings['bounding_box_min_x'] = min(location.x, export_settings['bounding_box_min_x'])
-                export_settings['bounding_box_min_y'] = min(location.y, export_settings['bounding_box_min_y'])
-                export_settings['bounding_box_min_z'] = min(location.z, export_settings['bounding_box_min_z'])
+                export_settings["bounding_box_max_x"] = max(
+                    location.x, export_settings["bounding_box_max_x"]
+                )
+                export_settings["bounding_box_max_y"] = max(
+                    location.y, export_settings["bounding_box_max_y"]
+                )
+                export_settings["bounding_box_max_z"] = max(
+                    location.z, export_settings["bounding_box_max_z"]
+                )
+                export_settings["bounding_box_min_x"] = min(
+                    location.x, export_settings["bounding_box_min_x"]
+                )
+                export_settings["bounding_box_min_y"] = min(
+                    location.y, export_settings["bounding_box_min_y"]
+                )
+                export_settings["bounding_box_min_z"] = min(
+                    location.z, export_settings["bounding_box_min_z"]
+                )
 
             # Determine vertex type of the primitive
             # There are 3 possible vertex types - VTX, BLEND1, and BLEND4.
             # VTX - Unskinned meshes
             # BLEND1 - Skinned meshes with 1 bone
             # BLEND4 - Skinned meshes with 2-4 bones
-            vertex_type = 'VTX' # default is VTX
+            vertex_type = "VTX"  # default is VTX
 
-            for vi in blender_idxs: # this function needs refactoring
+            for vi in blender_idxs:  # this function needs refactoring
                 vertex = blender_mesh.vertices[vi]
                 weight_count = len(list(filter(lambda x: x.weight > 0, vertex.groups)))
                 if weight_count > 1:
-                    vertex_type = 'BLEND4'
+                    vertex_type = "BLEND4"
                     break
-                elif weight_count == 1 and vertex_type == 'VTX':
-                    vertex_type = 'BLEND1'
+                elif weight_count == 1 and vertex_type == "VTX":
+                    vertex_type = "BLEND1"
 
         for morph_i, vs in enumerate(morph_locs):
-            attributes['MORPH_POSITION_%d' % morph_i] = vs[blender_idxs]
+            attributes["MORPH_POSITION_%d" % morph_i] = vs[blender_idxs]
 
         if use_normals:
-            if export_settings['emulate_asobo_optimization']:
+            if export_settings["emulate_asobo_optimization"]:
                 # Asobo optimized meshes use a VEC4 for normals. The 4th value is there due to bit packing and alignment
                 normals = np.empty((len(prim_dots), 4), dtype=np.float32)
-                normals[:, 0] = prim_dots['nx']
-                normals[:, 1] = prim_dots['ny']
-                normals[:, 2] = prim_dots['nz']
+                normals[:, 0] = prim_dots["nx"]
+                normals[:, 1] = prim_dots["ny"]
+                normals[:, 2] = prim_dots["nz"]
                 normals[:, 3] = 0
             else:
                 normals = np.empty((len(prim_dots), 3), dtype=np.float32)
-                normals[:, 0] = prim_dots['nx']
-                normals[:, 1] = prim_dots['ny']
-                normals[:, 2] = prim_dots['nz']
-            attributes['NORMAL'] = normals
+                normals[:, 0] = prim_dots["nx"]
+                normals[:, 1] = prim_dots["ny"]
+                normals[:, 2] = prim_dots["nz"]
+            attributes["NORMAL"] = normals
 
         if use_tangents:
             tangents = np.empty((len(prim_dots), 4), dtype=np.float32)
-            tangents[:, 0] = prim_dots['tx']
-            tangents[:, 1] = prim_dots['ty']
-            tangents[:, 2] = prim_dots['tz']
-            tangents[:, 3] = prim_dots['tw']
-            attributes['TANGENT'] = tangents
+            tangents[:, 0] = prim_dots["tx"]
+            tangents[:, 1] = prim_dots["ty"]
+            tangents[:, 2] = prim_dots["tz"]
+            tangents[:, 3] = prim_dots["tw"]
+            attributes["TANGENT"] = tangents
 
         if use_morph_normals:
             for morph_i, _ in enumerate(key_blocks):
                 ns = np.empty((len(prim_dots), 3), dtype=np.float32)
-                ns[:, 0] = prim_dots['morph%dnx' % morph_i]
-                ns[:, 1] = prim_dots['morph%dny' % morph_i]
-                ns[:, 2] = prim_dots['morph%dnz' % morph_i]
-                attributes['MORPH_NORMAL_%d' % morph_i] = ns
+                ns[:, 0] = prim_dots["morph%dnx" % morph_i]
+                ns[:, 1] = prim_dots["morph%dny" % morph_i]
+                ns[:, 2] = prim_dots["morph%dnz" % morph_i]
+                attributes["MORPH_NORMAL_%d" % morph_i] = ns
 
                 if use_morph_tangents:
-                    attributes['MORPH_TANGENT_%d' % morph_i] = __calc_morph_tangents(normals, ns, tangents)
+                    attributes["MORPH_TANGENT_%d" % morph_i] = __calc_morph_tangents(
+                        normals, ns, tangents
+                    )
 
         for tex_coord_i in range(tex_coord_max):
             uvs = np.empty((len(prim_dots), 2), dtype=np.float32)
-            uvs[:, 0] = prim_dots['uv%dx' % tex_coord_i]
-            uvs[:, 1] = prim_dots['uv%dy' % tex_coord_i]
-            attributes['TEXCOORD_%d' % tex_coord_i] = uvs
+            uvs[:, 0] = prim_dots["uv%dx" % tex_coord_i]
+            uvs[:, 1] = prim_dots["uv%dy" % tex_coord_i]
+            attributes["TEXCOORD_%d" % tex_coord_i] = uvs
 
         for color_i in range(color_max):
             colors = np.empty((len(prim_dots), 4), dtype=np.float32)
-            colors[:, 0] = prim_dots['color%dr' % color_i]
-            colors[:, 1] = prim_dots['color%dg' % color_i]
-            colors[:, 2] = prim_dots['color%db' % color_i]
-            colors[:, 3] = prim_dots['color%da' % color_i]
-            attributes['COLOR_%d' % color_i] = colors
+            colors[:, 0] = prim_dots["color%dr" % color_i]
+            colors[:, 1] = prim_dots["color%dg" % color_i]
+            colors[:, 2] = prim_dots["color%db" % color_i]
+            colors[:, 3] = prim_dots["color%da" % color_i]
+            attributes["COLOR_%d" % color_i] = colors
 
         if skin:
             joints = [[] for _ in range(num_joint_sets)]
@@ -315,35 +383,46 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
                         joint, weight = bones[j]
                     else:
                         joint, weight = 0, 0.0
-                    joints[j//4].append(joint)
-                    if vertex_type == 'BLEND1': # BLEND1 meshes dont have more than one bone influence, so we only need one weight per bone
-                        if j % 4 == 0: # Only add weight if we are at the start of a joint set
+                    joints[j // 4].append(joint)
+                    if (
+                        vertex_type == "BLEND1"
+                    ):  # BLEND1 meshes dont have more than one bone influence, so we only need one weight per bone
+                        if (
+                            j % 4 == 0
+                        ):  # Only add weight if we are at the start of a joint set
                             weights[j].append(weight)
                     else:
-                        weights[j//4].append(weight)
+                        weights[j // 4].append(weight)
 
             for i, (js, ws) in enumerate(zip(joints, weights)):
-                attributes['JOINTS_%d' % i] = js
-                attributes['WEIGHTS_%d' % i] = ws
+                attributes["JOINTS_%d" % i] = js
+                attributes["WEIGHTS_%d" % i] = ws
 
-        if export_settings['emulate_asobo_optimization']:
+        if export_settings["emulate_asobo_optimization"]:
             # We add 3 extra properties if emulating asobo optimization
-            primitives.append({
-                'attributes': attributes,
-                'indices': indices,
-                'mode': 4, # Asobo mesh primitives always have 4 as the mode (triangles)
-                'material': material_idx,
-                'VertexType': vertex_type,
-                'BaseVertexIndex': None,
-            })
+            primitives.append(
+                {
+                    "attributes": attributes,
+                    "indices": indices,
+                    "mode": 4,  # Asobo mesh primitives always have 4 as the mode (triangles)
+                    "material": material_idx,
+                    "VertexType": vertex_type,
+                    "BaseVertexIndex": None,
+                }
+            )
         else:
-            primitives.append({
-                'attributes': attributes,
-                'indices': indices,
-                'material': material_idx,
-            })
+            primitives.append(
+                {
+                    "attributes": attributes,
+                    "indices": indices,
+                    "material": material_idx,
+                }
+            )
 
-    if export_settings['gltf_loose_edges'] and not export_settings['emulate_asobo_optimization']: # MSFS only supports primitive mode 4 (triangles)
+    if (
+        export_settings["gltf_loose_edges"]
+        and not export_settings["emulate_asobo_optimization"]
+    ):  # MSFS only supports primitive mode 4 (triangles)
         # Find loose edges
         loose_edges = [e for e in blender_mesh.edges if e.is_loose]
         blender_idxs = [vi for e in loose_edges for vi in e.vertices]
@@ -355,10 +434,10 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
 
             attributes = {}
 
-            attributes['POSITION'] = locs[blender_idxs]
+            attributes["POSITION"] = locs[blender_idxs]
 
             for morph_i, vs in enumerate(morph_locs):
-                attributes['MORPH_POSITION_%d' % morph_i] = vs[blender_idxs]
+                attributes["MORPH_POSITION_%d" % morph_i] = vs[blender_idxs]
 
             if skin:
                 joints = [[] for _ in range(num_joint_sets)]
@@ -371,26 +450,30 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
                             joint, weight = bones[j]
                         else:
                             joint, weight = 0, 0.0
-                        joints[j//4].append(joint)
-                        weights[j//4].append(weight)
+                        joints[j // 4].append(joint)
+                        weights[j // 4].append(weight)
 
                 for i, (js, ws) in enumerate(zip(joints, weights)):
-                    attributes['JOINTS_%d' % i] = js
-                    attributes['WEIGHTS_%d' % i] = ws
+                    attributes["JOINTS_%d" % i] = js
+                    attributes["WEIGHTS_%d" % i] = ws
 
-            primitives.append({
-                'attributes': attributes,
-                'indices': indices,
-                'mode': 1,  # LINES
-                'material': 0,
-            })
+            primitives.append(
+                {
+                    "attributes": attributes,
+                    "indices": indices,
+                    "mode": 1,  # LINES
+                    "material": 0,
+                }
+            )
 
-    if export_settings['gltf_loose_points'] and not export_settings['emulate_asobo_optimization']: # MSFS only supports primitive mode 4 (triangles)
+    if (
+        export_settings["gltf_loose_points"]
+        and not export_settings["emulate_asobo_optimization"]
+    ):  # MSFS only supports primitive mode 4 (triangles)
         # Find loose points
         verts_in_edge = set(vi for e in blender_mesh.edges for vi in e.vertices)
         blender_idxs = [
-            vi for vi, _ in enumerate(blender_mesh.vertices)
-            if vi not in verts_in_edge
+            vi for vi, _ in enumerate(blender_mesh.vertices) if vi not in verts_in_edge
         ]
 
         if blender_idxs:
@@ -398,10 +481,10 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
 
             attributes = {}
 
-            attributes['POSITION'] = locs[blender_idxs]
+            attributes["POSITION"] = locs[blender_idxs]
 
             for morph_i, vs in enumerate(morph_locs):
-                attributes['MORPH_POSITION_%d' % morph_i] = vs[blender_idxs]
+                attributes["MORPH_POSITION_%d" % morph_i] = vs[blender_idxs]
 
             if skin:
                 joints = [[] for _ in range(num_joint_sets)]
@@ -414,34 +497,38 @@ def extract_primitives(glTF, blender_mesh, library, blender_object, blender_vert
                             joint, weight = bones[j]
                         else:
                             joint, weight = 0, 0.0
-                        joints[j//4].append(joint)
-                        weights[j//4].append(weight)
+                        joints[j // 4].append(joint)
+                        weights[j // 4].append(weight)
 
                 for i, (js, ws) in enumerate(zip(joints, weights)):
-                    attributes['JOINTS_%d' % i] = js
-                    attributes['WEIGHTS_%d' % i] = ws
+                    attributes["JOINTS_%d" % i] = js
+                    attributes["WEIGHTS_%d" % i] = ws
 
-            primitives.append({
-                'attributes': attributes,
-                'mode': 0,  # POINTS
-                'material': 0,
-            })
+            primitives.append(
+                {
+                    "attributes": attributes,
+                    "mode": 0,  # POINTS
+                    "material": 0,
+                }
+            )
 
-    print_console('INFO', 'Primitives created: %d' % len(primitives))
+    print_console("INFO", "Primitives created: %d" % len(primitives))
 
     return primitives
 
 
-def __get_positions(blender_mesh, key_blocks, armature, blender_object, export_settings):
+def __get_positions(
+    blender_mesh, key_blocks, armature, blender_object, export_settings
+):
     locs = np.empty(len(blender_mesh.vertices) * 3, dtype=np.float32)
     source = key_blocks[0].relative_key.data if key_blocks else blender_mesh.vertices
-    source.foreach_get('co', locs)
+    source.foreach_get("co", locs)
     locs = locs.reshape(len(blender_mesh.vertices), 3)
 
     morph_locs = []
     for key_block in key_blocks:
         vs = np.empty(len(blender_mesh.vertices) * 3, dtype=np.float32)
-        key_block.data.foreach_get('co', vs)
+        key_block.data.foreach_get("co", vs)
         vs = vs.reshape(len(blender_mesh.vertices), 3)
         morph_locs.append(vs)
 
@@ -475,7 +562,7 @@ def __get_normals(blender_mesh, key_blocks, armature, blender_object, export_set
     else:
         normals = np.empty(len(blender_mesh.loops) * 3, dtype=np.float32)
         blender_mesh.calc_normals_split()
-        blender_mesh.loops.foreach_get('normal', normals)
+        blender_mesh.loops.foreach_get("normal", normals)
 
     normals = normals.reshape(len(blender_mesh.loops), 3)
 
@@ -487,7 +574,7 @@ def __get_normals(blender_mesh, key_blocks, armature, blender_object, export_set
 
     # Transform for skinning
     if armature and blender_object:
-        apply_matrix = (armature.matrix_world.inverted() @ blender_object.matrix_world)
+        apply_matrix = armature.matrix_world.inverted() @ blender_object.matrix_world
         apply_matrix = apply_matrix.to_3x3().inverted().transposed()
         normal_transform = armature.matrix_world.to_3x3() @ apply_matrix
 
@@ -518,7 +605,7 @@ def __get_normals(blender_mesh, key_blocks, armature, blender_object, export_set
 def __get_tangents(blender_mesh, armature, blender_object, export_settings):
     """Get an array of the tangent for each loop."""
     tangents = np.empty(len(blender_mesh.loops) * 3, dtype=np.float32)
-    blender_mesh.loops.foreach_get('tangent', tangents)
+    blender_mesh.loops.foreach_get("tangent", tangents)
     tangents = tangents.reshape(len(blender_mesh.loops), 3)
 
     # Transform for skinning
@@ -536,7 +623,7 @@ def __get_tangents(blender_mesh, armature, blender_object, export_settings):
 
 def __get_bitangent_signs(blender_mesh, armature, blender_object, export_settings):
     signs = np.empty(len(blender_mesh.loops), dtype=np.float32)
-    blender_mesh.loops.foreach_get('bitangent_sign', signs)
+    blender_mesh.loops.foreach_get("bitangent_sign", signs)
 
     # Transform for skinning
     if armature and blender_object:
@@ -572,18 +659,22 @@ def __calc_morph_tangents(normals, morph_normal_deltas, tangents):
 
 
 def __get_uvs(blender_mesh, uv_i, export_settings):
-    if export_settings['emulate_asobo_optimization']: # The sim is expecting at least two tex coords, so create extras if needed
-        if len(blender_mesh.uv_layers) == 0: # Create a fake UV layer if there are none
+    if export_settings[
+        "emulate_asobo_optimization"
+    ]:  # The sim is expecting at least two tex coords, so create extras if needed
+        if len(blender_mesh.uv_layers) == 0:  # Create a fake UV layer if there are none
             layer = np.empty(len(blender_mesh.loops) * 2, dtype=np.float32)
-            layer.fill(0.0) # Blank UV layer
-        elif len(blender_mesh.uv_layers) == 1 and uv_i == 1: # If we only have one UV layer and we're trying to export the second UV layer, use the first for the second layer
+            layer.fill(0.0)  # Blank UV layer
+        elif (
+            len(blender_mesh.uv_layers) == 1 and uv_i == 1
+        ):  # If we only have one UV layer and we're trying to export the second UV layer, use the first for the second layer
             layer = blender_mesh.uv_layers[0]
         else:
             layer = blender_mesh.uv_layers[uv_i]
-    else: # If we aren't optimizing the mesh OR if there are two or more UV layers, continue as normal
+    else:  # If we aren't optimizing the mesh OR if there are two or more UV layers, continue as normal
         layer = blender_mesh.uv_layers[uv_i]
     uvs = np.empty(len(blender_mesh.loops) * 2, dtype=np.float32)
-    layer.data.foreach_get('uv', uvs)
+    layer.data.foreach_get("uv", uvs)
     uvs = uvs.reshape(len(blender_mesh.loops), 2)
 
     # Blender UV space -> glTF UV space
@@ -595,13 +686,16 @@ def __get_uvs(blender_mesh, uv_i, export_settings):
 
 
 def __get_colors(blender_mesh, color_i, export_settings):
-    if len(blender_mesh.vertex_colors) == 0 and export_settings['emulate_asobo_optimization']: # Create a fake vertex color layer if there are none and we're optimizing the mesh since the sim is expecting a vertex color
+    if (
+        len(blender_mesh.vertex_colors) == 0
+        and export_settings["emulate_asobo_optimization"]
+    ):  # Create a fake vertex color layer if there are none and we're optimizing the mesh since the sim is expecting a vertex color
         colors = np.empty(len(blender_mesh.loops) * 4, dtype=np.float32)
-        colors.fill(1.0) # All white
+        colors.fill(1.0)  # All white
     else:
         layer = blender_mesh.vertex_colors[color_i]
         colors = np.empty(len(blender_mesh.loops) * 4, dtype=np.float32)
-        layer.data.foreach_get('color', colors)
+        layer.data.foreach_get("color", colors)
     colors = colors.reshape(len(blender_mesh.loops), 4)
 
     # sRGB -> Linear
@@ -637,7 +731,8 @@ def __get_bone_data(blender_mesh, skin, blender_vertex_groups):
                     continue
                 bones.append((joint, weight))
         bones.sort(key=lambda x: x[1], reverse=True)
-        if not bones: bones = ((0, 1.0),)  # HACK for verts with zero weight (#308)
+        if not bones:
+            bones = ((0, 1.0),)  # HACK for verts with zero weight (#308)
         vert_bones.append(bones)
         if len(bones) > max_num_influences:
             max_num_influences = len(bones)
@@ -650,7 +745,7 @@ def __get_bone_data(blender_mesh, skin, blender_vertex_groups):
 
 def __zup2yup(array):
     # x,y,z -> x,z,-y
-    array[:, [1,2]] = array[:, [2,1]]  # x,z,y
+    array[:, [1, 2]] = array[:, [2, 1]]  # x,z,y
     array[:, 2] *= -1  # x,z,-y
 
 

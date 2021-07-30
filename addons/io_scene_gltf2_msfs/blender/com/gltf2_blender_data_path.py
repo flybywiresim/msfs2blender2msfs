@@ -15,16 +15,17 @@
 
 def get_target_property_name(data_path: str) -> str:
     """Retrieve target property."""
-    return data_path.rsplit('.', 1)[-1]
+    return data_path.rsplit(".", 1)[-1]
 
 
 def get_target_object_path(data_path: str) -> str:
     """Retrieve target object data path without property"""
-    path_split = data_path.rsplit('.', 1)
+    path_split = data_path.rsplit(".", 1)
     self_targeting = len(path_split) < 2
     if self_targeting:
         return ""
     return path_split[0]
+
 
 def get_rotation_modes(target_property: str) -> str:
     """Retrieve rotation modes based on target_property"""

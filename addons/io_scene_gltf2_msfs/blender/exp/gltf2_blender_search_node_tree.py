@@ -58,14 +58,18 @@ class FilterByType(Filter):
 
 
 class NodeTreeSearchResult:
-    def __init__(self, shader_node: bpy.types.Node, path: typing.List[bpy.types.NodeLink]):
+    def __init__(
+        self, shader_node: bpy.types.Node, path: typing.List[bpy.types.NodeLink]
+    ):
         self.shader_node = shader_node
         self.path = path
 
 
 # TODO: cache these searches
-def from_socket(start_socket: bpy.types.NodeSocket,
-                shader_node_filter: typing.Union[Filter, typing.Callable]) -> typing.List[NodeTreeSearchResult]:
+def from_socket(
+    start_socket: bpy.types.NodeSocket,
+    shader_node_filter: typing.Union[Filter, typing.Callable],
+) -> typing.List[NodeTreeSearchResult]:
     """
     Find shader nodes where the filter expression is true.
 
@@ -74,9 +78,11 @@ def from_socket(start_socket: bpy.types.NodeSocket,
     :return: a list of shader nodes for which filter is true
     """
     # hide implementation (especially the search path)
-    def __search_from_socket(start_socket: bpy.types.NodeSocket,
-                             shader_node_filter: typing.Union[Filter, typing.Callable],
-                             search_path: typing.List[bpy.types.NodeLink]) -> typing.List[NodeTreeSearchResult]:
+    def __search_from_socket(
+        start_socket: bpy.types.NodeSocket,
+        shader_node_filter: typing.Union[Filter, typing.Callable],
+        search_path: typing.List[bpy.types.NodeLink],
+    ) -> typing.List[NodeTreeSearchResult]:
         results = []
 
         for link in start_socket.links:
@@ -87,7 +93,9 @@ def from_socket(start_socket: bpy.types.NodeSocket,
                 results.append(NodeTreeSearchResult(linked_node, search_path + [link]))
             # traverse into inputs of the node
             for input_socket in linked_node.inputs:
-                linked_results = __search_from_socket(input_socket, shader_node_filter, search_path + [link])
+                linked_results = __search_from_socket(
+                    input_socket, shader_node_filter, search_path + [link]
+                )
                 if linked_results:
                     # add the link to the current path
                     search_path.append(link)

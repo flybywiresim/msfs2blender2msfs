@@ -26,16 +26,21 @@ class Channel(enum.IntEnum):
     B = 2
     A = 3
 
+
 # These describe how an ExportImage's channels should be filled.
+
 
 class FillImage:
     """Fills a channel with the channel src_chan from a Blender image."""
+
     def __init__(self, image: bpy.types.Image, src_chan: Channel):
         self.image = image
         self.src_chan = src_chan
 
+
 class FillWhite:
     """Fills a channel with all ones (1.0)."""
+
     pass
 
 
@@ -109,16 +114,15 @@ class ExportImage:
     def __on_happy_path(self) -> bool:
         # All src_chans match their dst_chan and come from the same image
         return (
-            all(isinstance(fill, FillImage) for fill in self.fills.values()) and
-            all(dst_chan == fill.src_chan for dst_chan, fill in self.fills.items()) and
-            len(set(fill.image.name for fill in self.fills.values())) == 1
+            all(isinstance(fill, FillImage) for fill in self.fills.values())
+            and all(dst_chan == fill.src_chan for dst_chan, fill in self.fills.items())
+            and len(set(fill.image.name for fill in self.fills.values())) == 1
         )
 
     def encode(self, mime_type: Optional[str]) -> bytes:
-        self.file_format = {
-            "image/jpeg": "JPEG",
-            "image/png": "PNG"
-        }.get(mime_type, "PNG")
+        self.file_format = {"image/jpeg": "JPEG", "image/png": "PNG"}.get(
+            mime_type, "PNG"
+        )
 
         # Happy path = we can just use an existing Blender image
         if self.__on_happy_path():
@@ -166,13 +170,15 @@ class ExportImage:
             # Copy any channels for this image to the output
             for dst_chan, fill in self.fills.items():
                 if isinstance(fill, FillImage) and fill.image == image:
-                    out_buf[int(dst_chan)::4] = tmp_buf[int(fill.src_chan)::4]
+                    out_buf[int(dst_chan) :: 4] = tmp_buf[int(fill.src_chan) :: 4]
 
         tmp_buf = None  # GC this
 
         return self.__encode_from_numpy_array(out_buf, (width, height))
 
-    def __encode_from_numpy_array(self, pixels: np.ndarray, dim: Tuple[int, int]) -> bytes:
+    def __encode_from_numpy_array(
+        self, pixels: np.ndarray, dim: Tuple[int, int]
+    ) -> bytes:
         with TmpImageGuard() as guard:
             guard.image = bpy.data.images.new(
                 "##gltf-export:tmp-image##",
@@ -189,22 +195,25 @@ class ExportImage:
     def __encode_from_image(self, image: bpy.types.Image) -> bytes:
         # See if there is an existing file we can use.
         data = None
-        if image.source == 'FILE' and image.file_format == self.file_format and \
-                not image.is_dirty:
+        if (
+            image.source == "FILE"
+            and image.file_format == self.file_format
+            and not image.is_dirty
+        ):
             if image.packed_file is not None:
                 data = image.packed_file.data
             else:
                 src_path = bpy.path.abspath(image.filepath_raw)
                 if os.path.isfile(src_path):
-                    with open(src_path, 'rb') as f:
+                    with open(src_path, "rb") as f:
                         data = f.read()
         # Check magic number is right
         if data:
-            if self.file_format == 'PNG':
-                if data.startswith(b'\x89PNG'):
+            if self.file_format == "PNG":
+                if data.startswith(b"\x89PNG"):
                     return data
-            elif self.file_format == 'JPEG':
-                if data.startswith(b'\xff\xd8\xff'):
+            elif self.file_format == "JPEG":
+                if data.startswith(b"\xff\xd8\xff"):
                     return data
 
         # Copy to a temp image and save.
@@ -216,7 +225,7 @@ class ExportImage:
 
 def _encode_temp_image(tmp_image: bpy.types.Image, file_format: str) -> bytes:
     with tempfile.TemporaryDirectory() as tmpdirname:
-        tmpfilename = tmpdirname + '/img'
+        tmpfilename = tmpdirname + "/img"
         tmp_image.filepath_raw = tmpfilename
 
         tmp_image.file_format = file_format
@@ -229,6 +238,7 @@ def _encode_temp_image(tmp_image: bpy.types.Image, file_format: str) -> bytes:
 
 class TmpImageGuard:
     """Guard to automatically clean up temp images (use it with `with`)."""
+
     def __init__(self):
         self.image = None
 

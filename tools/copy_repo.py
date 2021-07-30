@@ -22,7 +22,13 @@ from shutil import copyfile
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-r", "--repo", required=False, help="repo path")
-ap.add_argument("-b", "--bump", required=False, action="store_true", help="bump to +1 minor version number")
+ap.add_argument(
+    "-b",
+    "--bump",
+    required=False,
+    action="store_true",
+    help="bump to +1 minor version number",
+)
 args = vars(ap.parse_args())
 
 root = dirname(realpath(__file__))
@@ -48,14 +54,22 @@ if args["bump"] is True:
         data = f_read.read()
 
         for l in data.split("\n"):
-            if "\"version\"" in l:
+            if '"version"' in l:
                 try:
-                    versions = l.split('(')[1].split(')')[0].split(',')
+                    versions = l.split("(")[1].split(")")[0].split(",")
                     if len(versions) != 3:
                         print("Can't find version properly")
                         sys.exit()
 
-                    new_line = "    \"version\": (" + versions[0] + "," + versions[1] + ", " + str(int(versions[2]) + 1) + "),"
+                    new_line = (
+                        '    "version": ('
+                        + versions[0]
+                        + ","
+                        + versions[1]
+                        + ", "
+                        + str(int(versions[2]) + 1)
+                        + "),"
+                    )
                     break
                 except:
                     print("Can't find version")
@@ -63,7 +77,7 @@ if args["bump"] is True:
 
     with open(init_file, "w") as f_write:
         for idx, l in enumerate(data.split("\n")):
-            if "\"version\"" in l:
+            if '"version"' in l:
                 f_write.write(new_line + "\n")
             else:
                 if idx == len(data.split("\n")) - 1:
@@ -77,7 +91,7 @@ if args["repo"] is not None:
         args["repo"] += "/"
 
     for root, dirs, files in walk(INPUT):
-        new_dir = args["repo"] + root[len(INPUT):]
+        new_dir = args["repo"] + root[len(INPUT) :]
 
         if not isdir(new_dir):
             makedirs(new_dir)
@@ -92,6 +106,6 @@ if args["repo"] is not None:
     # Check that files removed are also removed in blender repo
     for root, dirs, files in walk(join(args["repo"], "io_scene_gltf2_msfs")):
         for file in files:
-            if not isfile(join(INPUT, join(root[len(args["repo"]):], file))):
-                print(join(root[len(args["repo"]):], file))
-                remove(join(args["repo"], join(root[len(args["repo"]):], file)))
+            if not isfile(join(INPUT, join(root[len(args["repo"]) :], file))):
+                print(join(root[len(args["repo"]) :], file))
+                remove(join(args["repo"], join(root[len(args["repo"]) :], file)))

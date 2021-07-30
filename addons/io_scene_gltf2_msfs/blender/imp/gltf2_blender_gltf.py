@@ -17,8 +17,9 @@ from mathutils import Vector, Quaternion, Matrix
 from .gltf2_blender_scene import BlenderScene
 
 
-class BlenderGlTF():
+class BlenderGlTF:
     """Main glTF import class."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -29,6 +30,7 @@ class BlenderGlTF():
         if profile:
             import cProfile, pstats, io
             from pstats import SortKey
+
             pr = cProfile.Profile()
             pr.enable()
             BlenderGlTF._create(gltf)
@@ -56,26 +58,36 @@ class BlenderGlTF():
 
             # glTF Y-Up space --> Blender Z-up space
             # X,Y,Z --> X,-Z,Y
-            def convert_loc(x): return u * Vector([x[0], -x[2], x[1]])
-            def convert_quat(q): return Quaternion([q[3], q[0], -q[2], q[1]])
-            def convert_scale(s): return Vector([s[0], s[2], s[1]])
+            def convert_loc(x):
+                return u * Vector([x[0], -x[2], x[1]])
+
+            def convert_quat(q):
+                return Quaternion([q[3], q[0], -q[2], q[1]])
+
+            def convert_scale(s):
+                return Vector([s[0], s[2], s[1]])
+
             def convert_matrix(m):
-                return Matrix([
-                    [   m[0],   -m[ 8],    m[4],  m[12]*u],
-                    [  -m[2],    m[10],   -m[6], -m[14]*u],
-                    [   m[1],   -m[ 9],    m[5],  m[13]*u],
-                    [ m[3]/u, -m[11]/u,  m[7]/u,    m[15]],
-                ])
+                return Matrix(
+                    [
+                        [m[0], -m[8], m[4], m[12] * u],
+                        [-m[2], m[10], -m[6], -m[14] * u],
+                        [m[1], -m[9], m[5], m[13] * u],
+                        [m[3] / u, -m[11] / u, m[7] / u, m[15]],
+                    ]
+                )
 
             # Batch versions operate in place on a numpy array
             def convert_locs_batch(locs):
                 # x,y,z -> x,-z,y
-                locs[:, [1,2]] = locs[:, [2,1]]
+                locs[:, [1, 2]] = locs[:, [2, 1]]
                 locs[:, 1] *= -1
                 # Unit conversion
-                if u != 1: locs *= u
+                if u != 1:
+                    locs *= u
+
             def convert_normals_batch(ns):
-                ns[:, [1,2]] = ns[:, [2,1]]
+                ns[:, [1, 2]] = ns[:, [2, 1]]
                 ns[:, 1] *= -1
 
             # Correction for cameras and lights.
@@ -83,17 +95,27 @@ class BlenderGlTF():
             # glTF after Yup2Zup: right = +X, forward = +Y, up = +Z
             # Blender: right = +X, forward = -Z, up = +Y
             # Need to carry Blender --> glTF after Yup2Zup
-            gltf.camera_correction = Quaternion((2**0.5/2, 2**0.5/2, 0.0, 0.0))
+            gltf.camera_correction = Quaternion((2 ** 0.5 / 2, 2 ** 0.5 / 2, 0.0, 0.0))
 
         else:
-            def convert_loc(x): return Vector(x)
-            def convert_quat(q): return Quaternion([q[3], q[0], q[1], q[2]])
-            def convert_scale(s): return Vector(s)
+
+            def convert_loc(x):
+                return Vector(x)
+
+            def convert_quat(q):
+                return Quaternion([q[3], q[0], q[1], q[2]])
+
+            def convert_scale(s):
+                return Vector(s)
+
             def convert_matrix(m):
                 return Matrix([m[0::4], m[1::4], m[2::4], m[3::4]])
 
-            def convert_locs_batch(_locs): return
-            def convert_normals_batch(_ns): return
+            def convert_locs_batch(_locs):
+                return
+
+            def convert_normals_batch(_ns):
+                return
 
             # Same convention, no correction needed.
             gltf.camera_correction = None
@@ -143,16 +165,23 @@ class BlenderGlTF():
                 # Pick pair-wise unique name for each animation to use as a name
                 # for its NLA tracks.
                 desired_name = anim.name or "Anim_%d" % anim_idx
-                anim.track_name = BlenderGlTF.find_unused_name(track_names, desired_name)
+                anim.track_name = BlenderGlTF.find_unused_name(
+                    track_names, desired_name
+                )
                 track_names.add(anim.track_name)
 
                 for channel_idx, channel in enumerate(anim.channels):
                     if channel.target.node is None:
                         continue
 
-                    if anim_idx not in gltf.data.nodes[channel.target.node].animations.keys():
+                    if (
+                        anim_idx
+                        not in gltf.data.nodes[channel.target.node].animations.keys()
+                    ):
                         gltf.data.nodes[channel.target.node].animations[anim_idx] = []
-                    gltf.data.nodes[channel.target.node].animations[anim_idx].append(channel_idx)
+                    gltf.data.nodes[channel.target.node].animations[anim_idx].append(
+                        channel_idx
+                    )
                     # Manage node with animation on weights, that are animated in meshes in Blender (ShapeKeys)
                     if channel.target.path == "weights":
                         gltf.data.nodes[channel.target.node].weight_animation = True
@@ -165,12 +194,14 @@ class BlenderGlTF():
         # Calculate names for each mesh's shapekeys
         for mesh in gltf.data.meshes or []:
             mesh.shapekey_names = []
-            used_names = set(['Basis']) #Be sure to not use 'Basis' name at import, this is a reserved name
+            used_names = set(
+                ["Basis"]
+            )  # Be sure to not use 'Basis' name at import, this is a reserved name
 
             # Some invalid glTF files has empty primitive tab
             if len(mesh.primitives) > 0:
                 for sk, target in enumerate(mesh.primitives[0].targets or []):
-                    if 'POSITION' not in target:
+                    if "POSITION" not in target:
                         mesh.shapekey_names.append(None)
                         continue
 
@@ -178,15 +209,19 @@ class BlenderGlTF():
                     # use the name of the POSITION accessor on the first primitive.
                     shapekey_name = None
                     if mesh.extras is not None:
-                        if 'targetNames' in mesh.extras and sk < len(mesh.extras['targetNames']):
-                            shapekey_name = mesh.extras['targetNames'][sk]
+                        if "targetNames" in mesh.extras and sk < len(
+                            mesh.extras["targetNames"]
+                        ):
+                            shapekey_name = mesh.extras["targetNames"][sk]
                     if shapekey_name is None:
-                        if gltf.data.accessors[target['POSITION']].name is not None:
-                            shapekey_name = gltf.data.accessors[target['POSITION']].name
+                        if gltf.data.accessors[target["POSITION"]].name is not None:
+                            shapekey_name = gltf.data.accessors[target["POSITION"]].name
                     if shapekey_name is None:
                         shapekey_name = "target_" + str(sk)
 
-                    shapekey_name = BlenderGlTF.find_unused_name(used_names, shapekey_name)
+                    shapekey_name = BlenderGlTF.find_unused_name(
+                        used_names, shapekey_name
+                    )
                     used_names.add(shapekey_name)
 
                     mesh.shapekey_names.append(shapekey_name)
@@ -198,17 +233,17 @@ class BlenderGlTF():
         If a is taken, tries a.001, then a.002, etc.
         """
         stem = desired_name[:63]
-        suffix = ''
+        suffix = ""
         cntr = 1
         while True:
             name = stem + suffix
 
-            if len(name.encode('utf-8')) > 63:
+            if len(name.encode("utf-8")) > 63:
                 stem = stem[:-1]
                 continue
 
             if name not in haystack:
                 return name
 
-            suffix = '.%03d' % cntr
+            suffix = ".%03d" % cntr
             cntr += 1

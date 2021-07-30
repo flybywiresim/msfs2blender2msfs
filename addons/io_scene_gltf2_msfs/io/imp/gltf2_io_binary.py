@@ -19,8 +19,9 @@ from ..com.gltf2_io import Accessor
 from ..com.gltf2_io_constants import ComponentType, DataType
 
 
-class BinaryData():
+class BinaryData:
     """Binary reader."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -57,7 +58,7 @@ class BinaryData():
         if byte_offset is None:
             byte_offset = 0
 
-        return buffer[byte_offset:byte_offset + buffer_view.byte_length]
+        return buffer[byte_offset : byte_offset + buffer_view.byte_length]
 
     @staticmethod
     def get_data_from_accessor(gltf, accessor_idx, cache=False):
@@ -92,9 +93,9 @@ class BinaryData():
     def decode_accessor_obj(gltf, accessor, is_asobo_optimized):
         # MAT2/3 have special alignment requirements that aren't handled. But it
         # doesn't matter because nothing uses them.
-        assert accessor.type not in ['MAT2', 'MAT3']
+        assert accessor.type not in ["MAT2", "MAT3"]
 
-        if is_asobo_optimized: # Asobo changes some of the data types
+        if is_asobo_optimized:  # Asobo changes some of the data types
             dtype = ComponentType.to_numpy_dtype_asobo(accessor.component_type)
         else:
             dtype = ComponentType.to_numpy_dtype(accessor.component_type)
@@ -114,7 +115,7 @@ class BinaryData():
             if stride == default_stride:
                 array = np.frombuffer(
                     buffer_data,
-                    dtype=np.dtype(dtype).newbyteorder('<'),
+                    dtype=np.dtype(dtype).newbyteorder("<"),
                     count=accessor.count * component_nb,
                 )
                 array = array.reshape(accessor.count, component_nb)
@@ -130,7 +131,7 @@ class BinaryData():
 
                 array = np.frombuffer(
                     buffer_data,
-                    dtype=np.dtype(dtype).newbyteorder('<'),
+                    dtype=np.dtype(dtype).newbyteorder("<"),
                     count=num_elems,
                 )
                 assert array.strides[0] == bytes_per_elem
@@ -145,24 +146,32 @@ class BinaryData():
             array = np.zeros((accessor.count, component_nb), dtype=dtype)
 
         if accessor.sparse:
-            sparse_indices_obj = Accessor.from_dict({
-                'count': accessor.sparse.count,
-                'bufferView': accessor.sparse.indices.buffer_view,
-                'byteOffset': accessor.sparse.indices.byte_offset or 0,
-                'componentType': accessor.sparse.indices.component_type,
-                'type': 'SCALAR',
-            })
-            sparse_indices = BinaryData.decode_accessor_obj(gltf, sparse_indices_obj, is_optimized)
+            sparse_indices_obj = Accessor.from_dict(
+                {
+                    "count": accessor.sparse.count,
+                    "bufferView": accessor.sparse.indices.buffer_view,
+                    "byteOffset": accessor.sparse.indices.byte_offset or 0,
+                    "componentType": accessor.sparse.indices.component_type,
+                    "type": "SCALAR",
+                }
+            )
+            sparse_indices = BinaryData.decode_accessor_obj(
+                gltf, sparse_indices_obj, is_optimized
+            )
             sparse_indices = sparse_indices.reshape(len(sparse_indices))
 
-            sparse_values_obj = Accessor.from_dict({
-                'count': accessor.sparse.count,
-                'bufferView': accessor.sparse.values.buffer_view,
-                'byteOffset': accessor.sparse.values.byte_offset or 0,
-                'componentType': accessor.component_type,
-                'type': accessor.type,
-            })
-            sparse_values = BinaryData.decode_accessor_obj(gltf, sparse_values_obj, is_optimized)
+            sparse_values_obj = Accessor.from_dict(
+                {
+                    "count": accessor.sparse.count,
+                    "bufferView": accessor.sparse.values.buffer_view,
+                    "byteOffset": accessor.sparse.values.byte_offset or 0,
+                    "componentType": accessor.component_type,
+                    "type": accessor.type,
+                }
+            )
+            sparse_values = BinaryData.decode_accessor_obj(
+                gltf, sparse_values_obj, is_optimized
+            )
 
             if not array.flags.writeable:
                 array = array.copy()
@@ -188,10 +197,7 @@ class BinaryData():
         """Get data from image."""
         pyimage = gltf.data.images[img_idx]
 
-        assert not (
-            pyimage.uri is not None and
-            pyimage.buffer_view is not None
-        )
+        assert not (pyimage.uri is not None and pyimage.buffer_view is not None)
 
         if pyimage.uri is not None:
             return gltf.load_uri(pyimage.uri)

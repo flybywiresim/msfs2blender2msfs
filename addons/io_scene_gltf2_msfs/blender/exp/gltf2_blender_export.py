@@ -31,11 +31,13 @@ from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_exte
 def save(context, export_settings):
     """Start the glTF 2.0 export and saves to content either to a .gltf or .glb file."""
     if bpy.context.active_object is not None:
-        if bpy.context.active_object.mode != "OBJECT": # For linked object, you can't force OBJECT mode
-            bpy.ops.object.mode_set(mode='OBJECT')
+        if (
+            bpy.context.active_object.mode != "OBJECT"
+        ):  # For linked object, you can't force OBJECT mode
+            bpy.ops.object.mode_set(mode="OBJECT")
 
     original_frame = bpy.context.scene.frame_current
-    if not export_settings['gltf_current_frame']:
+    if not export_settings["gltf_current_frame"]:
         bpy.context.scene.frame_set(0)
 
     __notify_start(context)
@@ -54,9 +56,9 @@ def save(context, export_settings):
     end_time = time.time()
     __notify_end(context, end_time - start_time)
 
-    if not export_settings['gltf_current_frame']:
+    if not export_settings["gltf_current_frame"]:
         bpy.context.scene.frame_set(original_frame)
-    return {'FINISHED'}
+    return {"FINISHED"}
 
 
 def __export(export_settings):
@@ -65,7 +67,7 @@ def __export(export_settings):
     buffer = __create_buffer(exporter, export_settings)
     exporter.finalize_images()
 
-    export_user_extensions('gather_gltf_hook', export_settings, exporter.glTF)
+    export_user_extensions("gather_gltf_hook", export_settings, exporter.glTF)
     exporter.traverse_extensions()
 
     # now that addons possibly add some fields in json, we can fix in needed
@@ -75,41 +77,47 @@ def __export(export_settings):
 
 
 def __gather_gltf(exporter, export_settings):
-    if export_settings['emulate_asobo_optimization']:
-        export_settings['bounding_box_max_x'] = 0
-        export_settings['bounding_box_max_y'] = 0
-        export_settings['bounding_box_max_z'] = 0
-        export_settings['bounding_box_min_x'] = 0
-        export_settings['bounding_box_min_y'] = 0
-        export_settings['bounding_box_min_z'] = 0
+    if export_settings["emulate_asobo_optimization"]:
+        export_settings["bounding_box_max_x"] = 0
+        export_settings["bounding_box_max_y"] = 0
+        export_settings["bounding_box_max_z"] = 0
+        export_settings["bounding_box_min_x"] = 0
+        export_settings["bounding_box_min_y"] = 0
+        export_settings["bounding_box_min_z"] = 0
 
-    active_scene_idx, scenes, animations = gltf2_blender_gather.gather_gltf2(export_settings)
+    active_scene_idx, scenes, animations = gltf2_blender_gather.gather_gltf2(
+        export_settings
+    )
 
-    if export_settings['gltf_draco_mesh_compression']:
-        gltf2_io_draco_compression_extension.encode_scene_primitives(scenes, export_settings)
+    if export_settings["gltf_draco_mesh_compression"]:
+        gltf2_io_draco_compression_extension.encode_scene_primitives(
+            scenes, export_settings
+        )
         exporter.add_draco_extension()
 
-    if export_settings['emulate_asobo_optimization']: # Prepare the primitives and buffer views for the simulator
+    if export_settings[
+        "emulate_asobo_optimization"
+    ]:  # Prepare the primitives and buffer views for the simulator
         buffer_views = gltf2_io_asobo_buffer_views.AsoboBufferViews()
         buffer_views.traverse_scenes(scenes)
         exporter.add_asobo_buffer_views(buffer_views.BufferViews)
 
     for idx, scene in enumerate(scenes):
-        exporter.add_scene(scene, idx==active_scene_idx)
+        exporter.add_scene(scene, idx == active_scene_idx)
     for animation in animations:
         exporter.add_animation(animation)
 
     # Add asobo extensions
-    if export_settings['emulate_asobo_optimization']:
+    if export_settings["emulate_asobo_optimization"]:
         bounding_box_max = [
-            export_settings['bounding_box_max_x'],
-            export_settings['bounding_box_max_y'],
-            export_settings['bounding_box_max_z'],
+            export_settings["bounding_box_max_x"],
+            export_settings["bounding_box_max_y"],
+            export_settings["bounding_box_max_z"],
         ]
         bounding_box_min = [
-            export_settings['bounding_box_min_x'],
-            export_settings['bounding_box_min_y'],
-            export_settings['bounding_box_min_z'],
+            export_settings["bounding_box_min_x"],
+            export_settings["bounding_box_min_y"],
+            export_settings["bounding_box_min_z"],
         ]
 
         extensions = {
@@ -117,11 +125,9 @@ def __gather_gltf(exporter, export_settings):
                 "BoundingBoxMax": bounding_box_max,
                 "BoundingBoxMin": bounding_box_min,
                 "MajorVersion": 4,
-                "MinorVersion": 2
+                "MinorVersion": 2,
             },
-            "ASOBO_normal_map_convention": {
-                "tangent_space_convention": "DirectX"
-            }
+            "ASOBO_normal_map_convention": {"tangent_space_convention": "DirectX"},
         }
 
         exporter.add_asobo_asset_extensions(extensions)
@@ -129,14 +135,20 @@ def __gather_gltf(exporter, export_settings):
 
 def __create_buffer(exporter, export_settings):
     buffer = bytes()
-    if export_settings[gltf2_blender_export_keys.FORMAT] == 'GLB':
-        buffer = exporter.finalize_buffer(export_settings[gltf2_blender_export_keys.FILE_DIRECTORY], is_glb=True)
+    if export_settings[gltf2_blender_export_keys.FORMAT] == "GLB":
+        buffer = exporter.finalize_buffer(
+            export_settings[gltf2_blender_export_keys.FILE_DIRECTORY], is_glb=True
+        )
     else:
-        if export_settings[gltf2_blender_export_keys.FORMAT] == 'GLTF_EMBEDDED':
-            exporter.finalize_buffer(export_settings[gltf2_blender_export_keys.FILE_DIRECTORY])
+        if export_settings[gltf2_blender_export_keys.FORMAT] == "GLTF_EMBEDDED":
+            exporter.finalize_buffer(
+                export_settings[gltf2_blender_export_keys.FILE_DIRECTORY]
+            )
         else:
-            exporter.finalize_buffer(export_settings[gltf2_blender_export_keys.FILE_DIRECTORY],
-                                     export_settings[gltf2_blender_export_keys.BINARY_FILENAME])
+            exporter.finalize_buffer(
+                export_settings[gltf2_blender_export_keys.FILE_DIRECTORY],
+                export_settings[gltf2_blender_export_keys.BINARY_FILENAME],
+            )
 
     return buffer
 
@@ -181,28 +193,29 @@ def __is_empty_collection(value):
 def __write_file(json, buffer, export_settings):
     try:
         gltf2_io_export.save_gltf(
-            json,
-            export_settings,
-            gltf2_blender_json.BlenderJSONEncoder,
-            buffer)
+            json, export_settings, gltf2_blender_json.BlenderJSONEncoder, buffer
+        )
     except AssertionError as e:
         _, _, tb = sys.exc_info()
         traceback.print_tb(tb)  # Fixed format
         tb_info = traceback.extract_tb(tb)
         for tbi in tb_info:
             filename, line, func, text = tbi
-            print_console('ERROR', 'An error occurred on line {} in statement {}'.format(line, text))
-        print_console('ERROR', str(e))
+            print_console(
+                "ERROR",
+                "An error occurred on line {} in statement {}".format(line, text),
+            )
+        print_console("ERROR", str(e))
         raise e
 
 
 def __notify_start(context):
-    print_console('INFO', 'Starting glTF 2.0 export')
+    print_console("INFO", "Starting glTF 2.0 export")
     context.window_manager.progress_begin(0, 100)
     context.window_manager.progress_update(0)
 
 
 def __notify_end(context, elapsed):
-    print_console('INFO', 'Finished glTF 2.0 export in {} s'.format(elapsed))
+    print_console("INFO", "Finished glTF 2.0 export in {} s".format(elapsed))
     context.window_manager.progress_end()
     print_newline()

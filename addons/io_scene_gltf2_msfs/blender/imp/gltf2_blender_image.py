@@ -29,8 +29,9 @@ from ...io.com import gltf2_io_debug
 
 
 # Note that Image is not a glTF2.0 object
-class BlenderImage():
+class BlenderImage:
     """Manage Image."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -47,7 +48,7 @@ class BlenderImage():
         tmp_dir = None
         is_placeholder = False
         try:
-            if img.uri is not None and not img.uri.startswith('data:'):
+            if img.uri is not None and not img.uri.startswith("data:"):
                 # Image stored in a file
                 if is_dds:
                     path = convert_dds(gltf, img)
@@ -62,12 +63,12 @@ class BlenderImage():
                 img_data = BinaryData.get_image_data(gltf, img_idx)
                 if img_data is None:
                     return
-                img_name = img_name or 'Image_%d' % img_idx
-                tmp_dir = tempfile.TemporaryDirectory(prefix='gltfimg-')
-                filename = _filenamify(img_name) or 'Image_%d' % img_idx
+                img_name = img_name or "Image_%d" % img_idx
+                tmp_dir = tempfile.TemporaryDirectory(prefix="gltfimg-")
+                filename = _filenamify(img_name) or "Image_%d" % img_idx
                 filename += _img_extension(img)
                 path = join(tmp_dir.name, filename)
-                with open(path, 'wb') as f:
+                with open(path, "wb") as f:
                     f.write(img_data)
 
             num_images = len(bpy.data.images)
@@ -82,15 +83,14 @@ class BlenderImage():
                 blender_image = _placeholder_image(img_name, os.path.abspath(path))
                 is_placeholder = True
 
-            if is_dds and (label == 'NORMALMAP' or label == 'DETAIL NORMALMAP'):
+            if is_dds and (label == "NORMALMAP" or label == "DETAIL NORMALMAP"):
                 BlenderImage.convert_normal_map(blender_image)
 
             if len(bpy.data.images) != num_images:  # If created a new image
                 blender_image.name = img_name
 
                 needs_pack = (
-                    gltf.import_settings['import_pack_images'] or
-                    tmp_dir is not None
+                    gltf.import_settings["import_pack_images"] or tmp_dir is not None
                 )
                 if not is_placeholder and needs_pack:
                     blender_image.pack()
@@ -120,65 +120,92 @@ class BlenderImage():
             normal_image.save()
             normal_image.reload()
         except RuntimeError:
-            gltf2_io_debug.print_console("ERROR", "Could not save converted image {}".format(normal_image.name))
+            gltf2_io_debug.print_console(
+                "ERROR", "Could not save converted image {}".format(normal_image.name)
+            )
+
 
 def _placeholder_image(name, path):
     image = bpy.data.images.new(name, 128, 128)
     # allow the path to be resolved later
     image.filepath = path
-    image.source = 'FILE'
+    image.source = "FILE"
     return image
+
 
 def _uri_to_path(uri):
     uri = urllib.parse.unquote(uri)
     return normpath(uri)
 
+
 def _img_extension(img):
-    if img.mime_type == 'image/png':
-        return '.png'
-    if img.mime_type == 'image/jpeg':
-        return '.jpg'
-    return ''
+    if img.mime_type == "image/png":
+        return ".png"
+    if img.mime_type == "image/jpeg":
+        return ".jpg"
+    return ""
+
 
 def _filenamify(s):
-    s = s.strip().replace(' ', '_')
-    return re.sub(r'(?u)[^-\w.]', '', s)
+    s = s.strip().replace(" ", "_")
+    return re.sub(r"(?u)[^-\w.]", "", s)
+
 
 def textures_allowed(gltf):
     texconv_path = pathlib.Path(gltf.addon_settings.texconv_file)
     texture_output_path = pathlib.Path(gltf.addon_settings.texture_output_dir)
     flight_sim_path = pathlib.Path(gltf.addon_settings.flight_sim_dir)
-    if gltf.addon_settings.texconv_file == '' or not texconv_path.exists():
+    if gltf.addon_settings.texconv_file == "" or not texconv_path.exists():
         return False
-    if gltf.addon_settings.texture_output_dir == '' or not texture_output_path.exists() or not texture_output_path.is_dir():
+    if (
+        gltf.addon_settings.texture_output_dir == ""
+        or not texture_output_path.exists()
+        or not texture_output_path.is_dir()
+    ):
         return False
-    if gltf.addon_settings.flight_sim_dir == '' or not flight_sim_path.exists() or not flight_sim_path.is_dir():
+    if (
+        gltf.addon_settings.flight_sim_dir == ""
+        or not flight_sim_path.exists()
+        or not flight_sim_path.is_dir()
+    ):
         return False
     return True
+
 
 def convert_dds(gltf, image):
     if textures_allowed(gltf):
         import_path = dirname(gltf.filename)
-        local_texture_dir = pathlib.Path(import_path).parent / 'TEXTURE'
+        local_texture_dir = pathlib.Path(import_path).parent / "TEXTURE"
         dds_file = local_texture_dir / image.uri
-        if gltf.addon_settings.flight_sim_dir in import_path or gltf.import_settings['include_sim_textures']: # we are importing from somewhere in the flight sim directory, or the user specified to include flight sim textures
+        if (
+            gltf.addon_settings.flight_sim_dir in import_path
+            or gltf.import_settings["include_sim_textures"]
+        ):  # we are importing from somewhere in the flight sim directory, or the user specified to include flight sim textures
             if not dds_file.exists():
                 paths = get_texture_paths(gltf)
                 for root, file in paths:
                     if file == image.uri:
-                        if 'Community' in root: # community texture always overrides official files
-                            config_file = pathlib.Path(root).parent / 'aircraft.cfg'
+                        if (
+                            "Community" in root
+                        ):  # community texture always overrides official files
+                            config_file = pathlib.Path(root).parent / "aircraft.cfg"
                             if config_file.exists():
-                                config = configparser.ConfigParser(strict = False)
-                                config.read_file(codecs.open(config_file, 'r', 'utf-8'))
-                                if "VARIATION" in [i.upper() for i in config.sections()]: # if variation is present, we know that this is a livery and we shouldn't use this texture
+                                config = configparser.ConfigParser(strict=False)
+                                config.read_file(codecs.open(config_file, "r", "utf-8"))
+                                if "VARIATION" in [
+                                    i.upper() for i in config.sections()
+                                ]:  # if variation is present, we know that this is a livery and we shouldn't use this texture
                                     continue
                             dds_file = pathlib.Path(root) / file
                             break
                         else:
-                            dds_file = pathlib.Path(root) / file # we don't break here because a community file may be present
+                            dds_file = (
+                                pathlib.Path(root) / file
+                            )  # we don't break here because a community file may be present
         if not dds_file.exists():
-            gltf2_io_debug.print_console("WARNING", "Could not find image {}".format(file))
+            gltf2_io_debug.print_console(
+                "WARNING", "Could not find image {}".format(file)
+            )
             return None
 
         # convert the image
@@ -186,38 +213,48 @@ def convert_dds(gltf, image):
 
         output_path = gltf.addon_settings.texture_output_dir
         try:
-            output_lines = subprocess.run(
-                [
-                    texconv_path,
-                    '-y',
-                    '-o', output_path,
-                    '-f', 'rgba',
-                    '-ft', 'png',
-                    str(dds_file)
-                ],
-                check=True,
-                capture_output=True
-            ).stdout.decode('cp1252').split('\r\n')
+            output_lines = (
+                subprocess.run(
+                    [
+                        texconv_path,
+                        "-y",
+                        "-o",
+                        output_path,
+                        "-f",
+                        "rgba",
+                        "-ft",
+                        "png",
+                        str(dds_file),
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+                .stdout.decode("cp1252")
+                .split("\r\n")
+            )
         except subprocess.CalledProcessError as e:
-            gltf2_io_debug.print_console("ERROR", "Could not convert image {}: {}".format(dds_file, e))
+            gltf2_io_debug.print_console(
+                "ERROR", "Could not convert image {}: {}".format(dds_file, e)
+            )
             return None
-        
+
         file_path = None
         for line in output_lines:
             line = line.lstrip()
-            if line.startswith('writing '):
-                file = pathlib.Path(line.split('writing ')[1])
+            if line.startswith("writing "):
+                file = pathlib.Path(line.split("writing ")[1])
                 if file.exists():
                     file_path = file
                 else:
-                    gltf2_io_debug.print_console("WARNING", "Could not find image {}".format(file))
+                    gltf2_io_debug.print_console(
+                        "WARNING", "Could not find image {}".format(file)
+                    )
                     return None
         return file_path
-                
 
     else:
         return None
-    
+
 
 def get_texture_paths(gltf):
     # gets every file in the sim installation directory (probably could change to just looking for certain image formats, but new ones may get supported)

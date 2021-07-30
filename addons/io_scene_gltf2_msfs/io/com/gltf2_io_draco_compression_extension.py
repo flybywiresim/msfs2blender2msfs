@@ -25,29 +25,38 @@ def dll_path() -> Path:
     Get the DLL path depending on the underlying platform.
     :return: DLL path.
     """
-    lib_name = 'extern_draco'
+    lib_name = "extern_draco"
     blender_root = Path(bpy.app.binary_path).parent
-    python_lib = Path('{v[0]}.{v[1]}/python/lib'.format(v=bpy.app.version))
-    python_version = 'python{v[0]}.{v[1]}'.format(v=sys.version_info)
+    python_lib = Path("{v[0]}.{v[1]}/python/lib".format(v=bpy.app.version))
+    python_version = "python{v[0]}.{v[1]}".format(v=sys.version_info)
 
-    path = os.environ.get('BLENDER_EXTERN_DRACO_LIBRARY_PATH')
+    path = os.environ.get("BLENDER_EXTERN_DRACO_LIBRARY_PATH")
     if path is None:
         path = {
-            'win32': blender_root / python_lib / 'site-packages',
-            'linux': blender_root / python_lib / python_version / 'site-packages',
-            'darwin': blender_root.parent / 'Resources' / python_lib / python_version / 'site-packages'
+            "win32": blender_root / python_lib / "site-packages",
+            "linux": blender_root / python_lib / python_version / "site-packages",
+            "darwin": blender_root.parent
+            / "Resources"
+            / python_lib
+            / python_version
+            / "site-packages",
         }.get(sys.platform)
     else:
         path = Path(path)
 
     library_name = {
-        'win32': '{}.dll'.format(lib_name),
-        'linux': 'lib{}.so'.format(lib_name),
-        'darwin': 'lib{}.dylib'.format(lib_name)
+        "win32": "{}.dll".format(lib_name),
+        "linux": "lib{}.so".format(lib_name),
+        "darwin": "lib{}.dylib".format(lib_name),
     }.get(sys.platform)
 
     if path is None or library_name is None:
-        print_console('WARNING', 'Unsupported platform {}, Draco mesh compression is unavailable'.format(sys.platform))
+        print_console(
+            "WARNING",
+            "Unsupported platform {}, Draco mesh compression is unavailable".format(
+                sys.platform
+            ),
+        )
 
     return path / library_name
 
@@ -59,10 +68,12 @@ def dll_exists(quiet=False) -> bool:
     """
     exists = dll_path().exists()
     if quiet is False:
-        print("'{}' ".format(dll_path().absolute()) + ("exists, draco mesh compression is available" if exists else
-                                                       "{} {} {}".format(
-                                                           "does not exist, draco mesh compression not available,",
-                                                           "please add it or create environment variable BLENDER_EXTERN_DRACO_LIBRARY_PATH",
-                                                           "pointing to the folder"
-                                                      )))
+        print(
+            "'{}' ".format(dll_path().absolute())
+            + (
+                "exists, draco mesh compression is available"
+                if exists
+                else "does not exist, draco mesh compression not available"
+            )
+        )
     return exists

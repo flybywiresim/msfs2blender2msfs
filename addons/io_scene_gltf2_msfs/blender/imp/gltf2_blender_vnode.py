@@ -18,6 +18,7 @@ from ...io.imp.gltf2_io_binary import BinaryData
 
 from ..com.gltf2_blender_math import scale_rot_swap_matrix, nearby_signed_perm_matrix
 
+
 def compute_vnodes(gltf):
     """Computes the tree of virtual nodes.
     Copies the glTF nodes into a tree of VNodes, then performs a series of
@@ -38,6 +39,7 @@ class VNode:
     These are what eventually get turned into nodes
     in the Blender scene.
     """
+
     # Types
     Object = 0
     Bone = 1
@@ -45,7 +47,7 @@ class VNode:
 
     def __init__(self):
         self.name = None
-        self.default_name = 'Node'  # fallback when no name
+        self.default_name = "Node"  # fallback when no name
         self.children = []
         self.parent = None
         self.type = VNode.Object
@@ -88,6 +90,7 @@ class VNode:
         m = scale_rot_swap_matrix(self.rotation_before)
         return [m @ scale for scale in base_scales]
 
+
 def local_rotation(gltf, vnode_id, rot):
     """Appends a local rotation to vnode's world transform:
     (new world transform) = (old world transform) @ (rot)
@@ -101,8 +104,7 @@ def local_rotation(gltf, vnode_id, rot):
     # Append the inverse rotation after children's TRS to cancel it out.
     rot_inv = rot.conjugated()
     for child in gltf.vnodes[vnode_id].children:
-        gltf.vnodes[child].rotation_after = \
-            rot_inv @ gltf.vnodes[child].rotation_after
+        gltf.vnodes[child].rotation_after = rot_inv @ gltf.vnodes[child].rotation_after
 
 
 def init_vnodes(gltf):
@@ -114,14 +116,14 @@ def init_vnodes(gltf):
         vnode = VNode()
         gltf.vnodes[i] = vnode
         vnode.name = pynode.name
-        vnode.default_name = 'Node_%d' % i
+        vnode.default_name = "Node_%d" % i
         vnode.children = list(pynode.children or [])
         vnode.base_trs = get_node_trs(gltf, pynode)
         if pynode.mesh is not None:
             vnode.mesh_node_idx = i
         if pynode.camera is not None:
             vnode.camera_node_idx = i
-        if 'KHR_lights_punctual' in (pynode.extensions or {}):
+        if "KHR_lights_punctual" in (pynode.extensions or {}):
             vnode.light_node_idx = i
 
     for id in gltf.vnodes:
@@ -131,12 +133,13 @@ def init_vnodes(gltf):
 
     # Inserting a root node will simplify things.
     roots = [id for id in gltf.vnodes if gltf.vnodes[id].parent is None]
-    gltf.vnodes['root'] = VNode()
-    gltf.vnodes['root'].type = VNode.DummyRoot
-    gltf.vnodes['root'].default_name = 'Root'
-    gltf.vnodes['root'].children = roots
+    gltf.vnodes["root"] = VNode()
+    gltf.vnodes["root"].type = VNode.DummyRoot
+    gltf.vnodes["root"].default_name = "Root"
+    gltf.vnodes["root"].children = roots
     for root in roots:
-        gltf.vnodes[root].parent = 'root'
+        gltf.vnodes[root].parent = "root"
+
 
 def get_node_trs(gltf, pynode):
     if pynode.matrix is not None:
@@ -167,7 +170,7 @@ def mark_bones_and_armas(gltf):
         if gltf.vnodes[arma_id].type != VNode.Bone:
             gltf.vnodes[arma_id].type = VNode.Object
             gltf.vnodes[arma_id].is_arma = True
-            gltf.vnodes[arma_id].arma_name = 'Armature'
+            gltf.vnodes[arma_id].arma_name = "Armature"
 
         for joint in skin.joints:
             while joint != arma_id:
@@ -190,7 +193,8 @@ def mark_bones_and_armas(gltf):
         for child in vnode.children:
             visit(child, cur_arma)
 
-    visit('root', cur_arma=None)
+    visit("root", cur_arma=None)
+
 
 def deepest_common_ancestor(gltf, vnode_ids):
     """Find the deepest (improper) ancestor of a set of vnodes."""
@@ -203,6 +207,7 @@ def deepest_common_ancestor(gltf, vnode_ids):
             path_to_ancestor = longest_common_prefix(path, path_to_ancestor)
     return path_to_ancestor[-1]
 
+
 def path_from_root(gltf, vnode_id):
     """Returns the ids of all vnodes from the root to vnode_id."""
     path = []
@@ -211,6 +216,7 @@ def path_from_root(gltf, vnode_id):
         vnode_id = gltf.vnodes[vnode_id].parent
     path.reverse()
     return path
+
 
 def longest_common_prefix(list1, list2):
     i = 0
@@ -250,17 +256,17 @@ def move_skinned_meshes(gltf):
         # First try moving the whole node if we can do it without
         # messing anything up.
         is_animated = (
-            gltf.data.animations and
-            isinstance(id, int) and
-            gltf.data.nodes[id].animations
+            gltf.data.animations
+            and isinstance(id, int)
+            and gltf.data.nodes[id].animations
         )
         ok_to_move = (
-            not is_animated and
-            vnode.type == VNode.Object and
-            not vnode.is_arma and
-            not vnode.children and
-            vnode.camera_node_idx is None and
-            vnode.light_node_idx is None
+            not is_animated
+            and vnode.type == VNode.Object
+            and not vnode.is_arma
+            and not vnode.children
+            and vnode.camera_node_idx is None
+            and vnode.light_node_idx is None
         )
         if ok_to_move:
             reparent(gltf, id, new_parent=arma)
@@ -273,12 +279,13 @@ def move_skinned_meshes(gltf):
 
         # Otherwise, create a new child of the arma and move
         # the mesh instance there, leaving the node behind.
-        new_id = str(id) + '.skinned'
+        new_id = str(id) + ".skinned"
         gltf.vnodes[new_id] = VNode()
         gltf.vnodes[new_id].parent = arma
         gltf.vnodes[arma].children.append(new_id)
         gltf.vnodes[new_id].mesh_node_idx = vnode.mesh_node_idx
         vnode.mesh_node_idx = None
+
 
 def reparent(gltf, vnode_id, new_parent):
     """Moves a VNode to a new parent."""
@@ -291,7 +298,6 @@ def reparent(gltf, vnode_id, new_parent):
         del parent_vnode.children[index]
     vnode.parent = new_parent
     gltf.vnodes[new_parent].children.append(vnode_id)
-
 
 
 def fixup_multitype_nodes(gltf):
@@ -311,7 +317,7 @@ def fixup_multitype_nodes(gltf):
 
         if vnode.mesh_node_idx is not None:
             if needs_move:
-                new_id = str(id) + '.mesh'
+                new_id = str(id) + ".mesh"
                 gltf.vnodes[new_id] = VNode()
                 gltf.vnodes[new_id].mesh_node_idx = vnode.mesh_node_idx
                 gltf.vnodes[new_id].parent = id
@@ -321,7 +327,7 @@ def fixup_multitype_nodes(gltf):
 
         if vnode.camera_node_idx is not None:
             if needs_move:
-                new_id = str(id) + '.camera'
+                new_id = str(id) + ".camera"
                 gltf.vnodes[new_id] = VNode()
                 gltf.vnodes[new_id].camera_node_idx = vnode.camera_node_idx
                 gltf.vnodes[new_id].parent = id
@@ -331,7 +337,7 @@ def fixup_multitype_nodes(gltf):
 
         if vnode.light_node_idx is not None:
             if needs_move:
-                new_id = str(id) + '.light'
+                new_id = str(id) + ".light"
                 gltf.vnodes[new_id] = VNode()
                 gltf.vnodes[new_id].light_node_idx = vnode.light_node_idx
                 gltf.vnodes[new_id].parent = id
@@ -349,9 +355,9 @@ def correct_cameras_and_lights(gltf):
         return
 
     for id, vnode in gltf.vnodes.items():
-        needs_correction = \
-           vnode.camera_node_idx is not None or \
-           vnode.light_node_idx is not None
+        needs_correction = (
+            vnode.camera_node_idx is not None or vnode.light_node_idx is not None
+        )
 
         if needs_correction:
             local_rotation(gltf, id, gltf.camera_correction)
@@ -362,10 +368,10 @@ def pick_bind_pose(gltf):
     Pick the bind pose for all bones. Skinned meshes will be retargeted onto
     this bind pose during mesh creation.
     """
-    if gltf.import_settings['guess_original_bind_pose']:
+    if gltf.import_settings["guess_original_bind_pose"]:
         # Record inverse bind matrices. We're going to milk them for information
         # about the original bind pose.
-        inv_binds = {'root': Matrix.Identity(4)}
+        inv_binds = {"root": Matrix.Identity(4)}
         for skin in gltf.data.skins or []:
             if skin.inverse_bind_matrices is None:
                 continue
@@ -378,7 +384,9 @@ def pick_bind_pose(gltf):
                 if skel not in inv_binds:
                     inv_binds[skel] = Matrix.Identity(4)
 
-            skin_inv_binds = BinaryData.get_data_from_accessor(gltf, skin.inverse_bind_matrices)
+            skin_inv_binds = BinaryData.get_data_from_accessor(
+                gltf, skin.inverse_bind_matrices
+            )
             skin_inv_binds = [gltf.matrix_gltf_to_blender(m) for m in skin_inv_binds]
             for i, joint in enumerate(skin.joints):
                 inv_binds[joint] = skin_inv_binds[i]
@@ -390,11 +398,13 @@ def pick_bind_pose(gltf):
             vnode.bind_trans = Vector(vnode.base_trs[0])
             vnode.bind_rot = Quaternion(vnode.base_trs[1])
 
-            if gltf.import_settings['guess_original_bind_pose']:
+            if gltf.import_settings["guess_original_bind_pose"]:
                 # Try to guess bind pose from inverse bind matrices
                 if vnode_id in inv_binds and vnode.parent in inv_binds:
                     # (bind matrix) = (parent bind matrix) (bind local). Solve for bind local...
-                    bind_local = inv_binds[vnode.parent] @ inv_binds[vnode_id].inverted_safe()
+                    bind_local = (
+                        inv_binds[vnode.parent] @ inv_binds[vnode_id].inverted_safe()
+                    )
                     t, r, _s = bind_local.decompose()
                     vnode.bind_trans = t
                     vnode.bind_rot = r
@@ -408,6 +418,7 @@ def prettify_bones(gltf):
     """
     Prettify bone lengths/directions.
     """
+
     def visit(vnode_id, parent_rot=None):  # Depth-first walk
         vnode = gltf.vnodes[vnode_id]
         rot = None
@@ -421,9 +432,11 @@ def prettify_bones(gltf):
         for child in vnode.children:
             visit(child, parent_rot=rot)
 
-    visit('root')
+    visit("root")
+
 
 MIN_BONE_LENGTH = 0.004  # too small and bones get deleted
+
 
 def pick_bone_length(gltf, bone_id):
     """Heuristic for bone length."""
@@ -446,6 +459,7 @@ def pick_bone_length(gltf, bone_id):
 
     return 1
 
+
 def pick_bone_rotation(gltf, bone_id, parent_rot):
     """Heuristic for bone rotation.
     A bone's tip lies on its local +Y axis so rotating a bone let's us
@@ -454,10 +468,11 @@ def pick_bone_rotation(gltf, bone_id, parent_rot):
     if bpy.app.debug_value == 100:
         return None
 
-    if gltf.import_settings['bone_heuristic'] == 'BLENDER':
-        return Quaternion((2**0.5/2, 2**0.5/2, 0, 0))
-    elif gltf.import_settings['bone_heuristic'] in ['TEMPERANCE', 'FORTUNE']:
+    if gltf.import_settings["bone_heuristic"] == "BLENDER":
+        return Quaternion((2 ** 0.5 / 2, 2 ** 0.5 / 2, 0, 0))
+    elif gltf.import_settings["bone_heuristic"] in ["TEMPERANCE", "FORTUNE"]:
         return temperance(gltf, bone_id, parent_rot)
+
 
 def temperance(gltf, bone_id, parent_rot):
     vnode = gltf.vnodes[bone_id]
@@ -472,7 +487,7 @@ def temperance(gltf, bone_id, parent_rot):
     if child_locs:
         centroid = sum(child_locs, Vector((0, 0, 0)))
         rot = Vector((0, 1, 0)).rotation_difference(centroid)
-        if gltf.import_settings['bone_heuristic'] == 'TEMPERANCE':
+        if gltf.import_settings["bone_heuristic"] == "TEMPERANCE":
             # Snap to the local axes; required for local_rotation to be
             # accurate when vnode has a non-uniform scaling.
             # FORTUNE skips this, so it may look better, but may have errors.
@@ -480,6 +495,7 @@ def temperance(gltf, bone_id, parent_rot):
         return rot
 
     return parent_rot
+
 
 def rotate_edit_bone(gltf, bone_id, rot):
     """Rotate one edit bone without affecting anything else."""
@@ -501,6 +517,7 @@ def calc_bone_matrices(gltf):
     Calculate the transformations from bone space to arma space in the bind
     pose and in the edit bone pose.
     """
+
     def visit(vnode_id):  # Depth-first walk
         vnode = gltf.vnodes[vnode_id]
         if vnode.type == VNode.Bone:
@@ -522,4 +539,4 @@ def calc_bone_matrices(gltf):
         for child in vnode.children:
             visit(child)
 
-    visit('root')
+    visit("root")

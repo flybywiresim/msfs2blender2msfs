@@ -13,25 +13,34 @@
 # limitations under the License.
 
 bl_info = {
-    'name': 'glTF 2.0 format for MSFS',
-    'author': 'pepperoni505, Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (1, 7, 17),
-    'blender': (2, 91, 0),
-    'location': 'File > Import-Export',
-    'description': 'Import-Export as glTF 2.0 for MSFS',
-    'warning': '',
-    'doc_url': "{BLENDER_MANUAL_URL}/addons/import_export/scene_gltf2.html",
-    'tracker_url': "https://github.com/flybywiresim/glTF-Blender-IO-MSFS/issues/",
-    'support': 'COMMUNITY',
-    'category': 'Import-Export',
+    "name": "glTF 2.0 format for MSFS",
+    "author": "pepperoni505, Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors",
+    "version": (1, 7, 5),
+    "blender": (2, 91, 0),
+    "location": "File > Import-Export",
+    "description": "Import-Export as glTF 2.0 for MSFS",
+    "warning": "",
+    "doc_url": "{BLENDER_MANUAL_URL}/addons/import_export/scene_gltf2.html",
+    "tracker_url": "https://github.com/flybywiresim/glTF-Blender-IO-MSFS/issues/",
+    "support": "COMMUNITY",
+    "category": "Import-Export",
 }
 
+
 def get_version_string():
-    return str(bl_info['version'][0]) + '.' + str(bl_info['version'][1]) + '.' + str(bl_info['version'][2])
+    return (
+        str(bl_info["version"][0])
+        + "."
+        + str(bl_info["version"][1])
+        + "."
+        + str(bl_info["version"][2])
+    )
+
 
 #
 # Script reloading (if the user calls 'Reload Scripts' from Blender)
 #
+
 
 def reload_package(module_dict_main):
     import importlib
@@ -54,11 +63,13 @@ if "bpy" in locals():
     reload_package(locals())
 
 import bpy
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       EnumProperty,
-                       IntProperty,
-                       CollectionProperty)
+from bpy.props import (
+    StringProperty,
+    BoolProperty,
+    EnumProperty,
+    IntProperty,
+    CollectionProperty,
+)
 from bpy.types import Operator, AddonPreferences
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 import pathlib
@@ -73,20 +84,21 @@ extension_panel_unregister_functors = []
 
 def ensure_filepath_matches_export_format(filepath, export_format):
     import os
+
     filename = os.path.basename(filepath)
     if not filename:
         return filepath
 
     stem, ext = os.path.splitext(filename)
-    if stem.startswith('.') and not ext:
-        stem, ext = '', stem
+    if stem.startswith(".") and not ext:
+        stem, ext = "", stem
 
-    desired_ext = '.glb' if export_format == 'GLB' else '.gltf'
+    desired_ext = ".glb" if export_format == "GLB" else ".gltf"
     ext_lower = ext.lower()
-    if ext_lower not in ['.glb', '.gltf']:
+    if ext_lower not in [".glb", ".gltf"]:
         return filepath + desired_ext
     elif ext_lower != desired_ext:
-        filepath = filepath[:-len(ext)]  # strip off ext
+        filepath = filepath[: -len(ext)]  # strip off ext
         return filepath + desired_ext
     else:
         return filepath
@@ -114,64 +126,84 @@ class ExportGLTF2_Base:
 
     def __init__(self):
         from io_scene_gltf2_msfs.io.com import gltf2_io_draco_compression_extension
+
         self.is_draco_available = gltf2_io_draco_compression_extension.dll_exists()
 
-    bl_options = {'PRESET'}
+    bl_options = {"PRESET"}
 
     export_format: EnumProperty(
-        name='Format',
-        items=(('GLB', 'glTF Binary (.glb)',
-                'Exports a single file, with all data packed in binary form. '
-                'Most efficient and portable, but more difficult to edit later'),
-               ('GLTF_EMBEDDED', 'glTF Embedded (.gltf)',
-                'Exports a single file, with all data packed in JSON. '
-                'Less efficient than binary, but easier to edit later'),
-               ('GLTF_SEPARATE', 'glTF Separate (.gltf + .bin + textures)',
-                'Exports multiple files, with separate JSON, binary and texture data. '
-                'Easiest to edit later')),
-        description=(
-            'Output format and embedding options. Binary is most efficient, '
-            'but JSON (embedded or separate) may be easier to edit later'
+        name="Format",
+        items=(
+            (
+                "GLB",
+                "glTF Binary (.glb)",
+                "Exports a single file, with all data packed in binary form. "
+                "Most efficient and portable, but more difficult to edit later",
+            ),
+            (
+                "GLTF_EMBEDDED",
+                "glTF Embedded (.gltf)",
+                "Exports a single file, with all data packed in JSON. "
+                "Less efficient than binary, but easier to edit later",
+            ),
+            (
+                "GLTF_SEPARATE",
+                "glTF Separate (.gltf + .bin + textures)",
+                "Exports multiple files, with separate JSON, binary and texture data. "
+                "Easiest to edit later",
+            ),
         ),
-        default='GLTF_SEPARATE',
+        description=(
+            "Output format and embedding options. Binary is most efficient, "
+            "but JSON (embedded or separate) may be easier to edit later"
+        ),
+        default="GLTF_SEPARATE",
         update=on_export_format_changed,
     )
 
     ui_tab: EnumProperty(
-        items=(('GENERAL', "General", "General settings"),
-               ('MESHES', "Meshes", "Mesh settings"),
-               ('OBJECTS', "Objects", "Object settings"),
-               ('ANIMATION', "Animation", "Animation settings")),
+        items=(
+            ("GENERAL", "General", "General settings"),
+            ("MESHES", "Meshes", "Mesh settings"),
+            ("OBJECTS", "Objects", "Object settings"),
+            ("ANIMATION", "Animation", "Animation settings"),
+        ),
         name="ui_tab",
         description="Export setting categories",
     )
 
     export_copyright: StringProperty(
-        name='Copyright',
-        description='Legal rights and conditions for the model',
-        default=''
+        name="Copyright",
+        description="Legal rights and conditions for the model",
+        default="",
     )
 
     export_image_format: EnumProperty(
-        name='Images',
-        items=(('AUTO', 'Automatic',
-                'Save PNGs as PNGs and JPEGs as JPEGs. '
-                'If neither one, use PNG'),
-                ('JPEG', 'JPEG Format (.jpg)',
-                'Save images as JPEGs. (Images that need alpha are saved as PNGs though.) '
-                'Be aware of a possible loss in quality'),
-               ),
-        description=(
-            'Output format for images. PNG is lossless and generally preferred, but JPEG might be preferable for web '
-            'applications due to the smaller file size'
+        name="Images",
+        items=(
+            (
+                "AUTO",
+                "Automatic",
+                "Save PNGs as PNGs and JPEGs as JPEGs. " "If neither one, use PNG",
+            ),
+            (
+                "JPEG",
+                "JPEG Format (.jpg)",
+                "Save images as JPEGs. (Images that need alpha are saved as PNGs though.) "
+                "Be aware of a possible loss in quality",
+            ),
         ),
-        default='AUTO'
+        description=(
+            "Output format for images. PNG is lossless and generally preferred, but JPEG might be preferable for web "
+            "applications due to the smaller file size"
+        ),
+        default="AUTO",
     )
 
     export_texture_dir: StringProperty(
-        name='Textures',
-        description='Folder to place texture files in. Relative to the .gltf file',
-        default='',
+        name="Textures",
+        description="Folder to place texture files in. Relative to the .gltf file",
+        default="",
     )
 
     export_keep_originals: BoolProperty(
@@ -185,128 +217,129 @@ class ExportGLTF2_Base:
     )
 
     export_texcoords: BoolProperty(
-        name='UVs',
-        description='Export UVs (texture coordinates) with meshes',
-        default=True
+        name="UVs",
+        description="Export UVs (texture coordinates) with meshes",
+        default=True,
     )
 
     export_normals: BoolProperty(
-        name='Normals',
-        description='Export vertex normals with meshes',
-        default=True
+        name="Normals", description="Export vertex normals with meshes", default=True
     )
 
     export_draco_mesh_compression_enable: BoolProperty(
-        name='Draco mesh compression',
-        description='Compress mesh using Draco',
-        default=False
+        name="Draco mesh compression",
+        description="Compress mesh using Draco",
+        default=False,
     )
 
     export_draco_mesh_compression_level: IntProperty(
-        name='Compression level',
-        description='Compression level (0 = most speed, 6 = most compression, higher values currently not supported)',
+        name="Compression level",
+        description="Compression level (0 = most speed, 6 = most compression, higher values currently not supported)",
         default=6,
         min=0,
-        max=10
+        max=10,
     )
 
     export_draco_position_quantization: IntProperty(
-        name='Position quantization bits',
-        description='Quantization bits for position values (0 = no quantization)',
+        name="Position quantization bits",
+        description="Quantization bits for position values (0 = no quantization)",
         default=14,
         min=0,
-        max=30
+        max=30,
     )
 
     export_draco_normal_quantization: IntProperty(
-        name='Normal quantization bits',
-        description='Quantization bits for normal values (0 = no quantization)',
+        name="Normal quantization bits",
+        description="Quantization bits for normal values (0 = no quantization)",
         default=10,
         min=0,
-        max=30
+        max=30,
     )
 
     export_draco_texcoord_quantization: IntProperty(
-        name='Texcoord quantization bits',
-        description='Quantization bits for texture coordinate values (0 = no quantization)',
+        name="Texcoord quantization bits",
+        description="Quantization bits for texture coordinate values (0 = no quantization)",
         default=12,
         min=0,
-        max=30
+        max=30,
     )
 
     export_draco_color_quantization: IntProperty(
-        name='Color quantization bits',
-        description='Quantization bits for color values (0 = no quantization)',
+        name="Color quantization bits",
+        description="Quantization bits for color values (0 = no quantization)",
         default=10,
         min=0,
-        max=30
+        max=30,
     )
 
     export_draco_generic_quantization: IntProperty(
-        name='Generic quantization bits',
-        description='Quantization bits for generic coordinate values like weights or joints (0 = no quantization)',
+        name="Generic quantization bits",
+        description="Quantization bits for generic coordinate values like weights or joints (0 = no quantization)",
         default=12,
         min=0,
-        max=30
+        max=30,
     )
 
     export_tangents: BoolProperty(
-        name='Tangents',
-        description='Export vertex tangents with meshes',
-        default=False
+        name="Tangents", description="Export vertex tangents with meshes", default=False
     )
 
     export_materials: EnumProperty(
-        name='Materials',
-        items=(('EXPORT', 'Export',
-        'Export all materials used by included objects'),
-        ('PLACEHOLDER', 'Placeholder',
-        'Do not export materials, but write multiple primitive groups per mesh, keeping material slot information'),
-        ('NONE', 'No export',
-        'Do not export materials, and combine mesh primitive groups, losing material slot information')),
-        description='Export materials ',
-        default='EXPORT'
+        name="Materials",
+        items=(
+            ("EXPORT", "Export", "Export all materials used by included objects"),
+            (
+                "PLACEHOLDER",
+                "Placeholder",
+                "Do not export materials, but write multiple primitive groups per mesh, keeping material slot information",
+            ),
+            (
+                "NONE",
+                "No export",
+                "Do not export materials, and combine mesh primitive groups, losing material slot information",
+            ),
+        ),
+        description="Export materials ",
+        default="EXPORT",
     )
 
     export_colors: BoolProperty(
-        name='Vertex Colors',
-        description='Export vertex colors with meshes',
-        default=True
+        name="Vertex Colors",
+        description="Export vertex colors with meshes",
+        default=True,
     )
 
     use_mesh_edges: BoolProperty(
-        name='Loose Edges',
+        name="Loose Edges",
         description=(
-            'Export loose edges as lines, using the material from the first material slot'
+            "Export loose edges as lines, using the material from the first material slot"
         ),
         default=False,
     )
 
     use_mesh_vertices: BoolProperty(
-        name='Loose Points',
+        name="Loose Points",
         description=(
-            'Export loose points as glTF points, using the material from the first material slot'
+            "Export loose points as glTF points, using the material from the first material slot"
         ),
         default=False,
     )
 
     export_cameras: BoolProperty(
-        name='Cameras',
-        description='Export cameras',
-        default=False
+        name="Cameras", description="Export cameras", default=False
     )
 
     # keep it for compatibility (for now)
     export_selected: BoolProperty(
-        name='Selected Objects',
-        description='Export selected objects only',
-        default=False
+        name="Selected Objects",
+        description="Export selected objects only",
+        default=False,
     )
 
     use_selection: BoolProperty(
-        name='Selected Objects',
-        description='Export selected objects only',
-        default=False
+        name="Selected Objects",
+        description="Export selected objects only",
+        default=False,
     )
 
     use_visible: BoolProperty(
@@ -328,127 +361,122 @@ class ExportGLTF2_Base:
     )
 
     export_extras: BoolProperty(
-        name='Custom Properties',
-        description='Export custom properties as glTF extras',
-        default=False
+        name="Custom Properties",
+        description="Export custom properties as glTF extras",
+        default=False,
     )
 
     export_yup: BoolProperty(
-        name='+Y Up',
-        description='Export using glTF convention, +Y up',
-        default=True
+        name="+Y Up", description="Export using glTF convention, +Y up", default=True
     )
 
     export_apply: BoolProperty(
-        name='Apply Modifiers',
-        description='Apply modifiers (excluding Armatures) to mesh objects -'
-                    'WARNING: prevents exporting shape keys',
-        default=False
+        name="Apply Modifiers",
+        description="Apply modifiers (excluding Armatures) to mesh objects -"
+        "WARNING: prevents exporting shape keys",
+        default=False,
     )
 
     export_animations: BoolProperty(
-        name='Animations',
-        description='Exports active actions and NLA tracks as glTF animations',
-        default=True
+        name="Animations",
+        description="Exports active actions and NLA tracks as glTF animations",
+        default=True,
     )
 
     export_frame_range: BoolProperty(
-        name='Limit to Playback Range',
-        description='Clips animations to selected playback range',
-        default=True
+        name="Limit to Playback Range",
+        description="Clips animations to selected playback range",
+        default=True,
     )
 
     export_frame_step: IntProperty(
-        name='Sampling Rate',
-        description='How often to evaluate animated values (in frames)',
+        name="Sampling Rate",
+        description="How often to evaluate animated values (in frames)",
         default=1,
         min=1,
-        max=120
+        max=120,
     )
 
     export_force_sampling: BoolProperty(
-        name='Always Sample Animations',
-        description='Apply sampling to all animations',
-        default=True
+        name="Always Sample Animations",
+        description="Apply sampling to all animations",
+        default=True,
     )
 
     export_nla_strips: BoolProperty(
-        name='Group by NLA Track',
+        name="Group by NLA Track",
         description=(
             "When on, multiple actions become part of the same glTF animation if "
             "they're pushed onto NLA tracks with the same name. "
             "When off, all the currently assigned actions become one glTF animation"
         ),
-        default=True
+        default=True,
     )
 
     export_def_bones: BoolProperty(
-        name='Export Deformation Bones Only',
-        description='Export Deformation bones only (and needed bones for hierarchy)',
-        default=False
+        name="Export Deformation Bones Only",
+        description="Export Deformation bones only (and needed bones for hierarchy)",
+        default=False,
     )
 
     export_current_frame: BoolProperty(
-        name='Use Current Frame',
-        description='Export the scene in the current animation frame',
-        default=False
+        name="Use Current Frame",
+        description="Export the scene in the current animation frame",
+        default=False,
     )
 
     export_skins: BoolProperty(
-        name='Skinning',
-        description='Export skinning (armature) data',
-        default=True
+        name="Skinning", description="Export skinning (armature) data", default=True
     )
 
     export_all_influences: BoolProperty(
-        name='Include All Bone Influences',
-        description='Allow >4 joint vertex influences. Models may appear incorrectly in many viewers',
-        default=False
+        name="Include All Bone Influences",
+        description="Allow >4 joint vertex influences. Models may appear incorrectly in many viewers",
+        default=False,
     )
 
     export_morph: BoolProperty(
-        name='Shape Keys',
-        description='Export shape keys (morph targets)',
-        default=True
+        name="Shape Keys", description="Export shape keys (morph targets)", default=True
     )
 
     export_morph_normal: BoolProperty(
-        name='Shape Key Normals',
-        description='Export vertex normals with shape keys (morph targets)',
-        default=True
+        name="Shape Key Normals",
+        description="Export vertex normals with shape keys (morph targets)",
+        default=True,
     )
 
     export_morph_tangent: BoolProperty(
-        name='Shape Key Tangents',
-        description='Export vertex tangents with shape keys (morph targets)',
-        default=False
+        name="Shape Key Tangents",
+        description="Export vertex tangents with shape keys (morph targets)",
+        default=False,
     )
 
     export_lights: BoolProperty(
-        name='Punctual Lights',
-        description='Export directional, point, and spot lights. '
-                    'Uses "KHR_lights_punctual" glTF extension',
-        default=False
+        name="Punctual Lights",
+        description="Export directional, point, and spot lights. "
+        'Uses "KHR_lights_punctual" glTF extension',
+        default=False,
     )
 
     export_displacement: BoolProperty(
-        name='Displacement Textures (EXPERIMENTAL)',
-        description='EXPERIMENTAL: Export displacement textures. '
-                    'Uses incomplete "KHR_materials_displacement" glTF extension',
-        default=False
+        name="Displacement Textures (EXPERIMENTAL)",
+        description="EXPERIMENTAL: Export displacement textures. "
+        'Uses incomplete "KHR_materials_displacement" glTF extension',
+        default=False,
     )
 
     emulate_asobo_optimization: BoolProperty(
-        name='Emulate Asobo Optimization',
-        description='Replicate the Asobo build process. '
-                    'If you enable this, you will not need to build the model',
-        default=True
+        name="Emulate Asobo Optimization",
+        description="Replicate the Asobo build process. "
+        "If you enable this, you will not need to build the model",
+        default=True,
     )
 
     will_save_settings: BoolProperty(
-        name='Remember Export Settings',
-        description='Store glTF export settings in the Blender project',
-        default=False)
+        name="Remember Export Settings",
+        description="Store glTF export settings in the Blender project",
+        default=False,
+    )
 
     # Custom scene property for saving settings
     scene_key = "glTF2MSFSExportSettings"
@@ -470,25 +498,37 @@ class ExportGLTF2_Base:
         if settings:
             try:
                 for (k, v) in settings.items():
-                    if k == "export_selected": # Back compatibility for export_selected --> use_selection
+                    if (
+                        k == "export_selected"
+                    ):  # Back compatibility for export_selected --> use_selection
                         setattr(self, "use_selection", v)
                         del settings[k]
                         settings["use_selection"] = v
-                        print("export_selected is now renamed use_selection, and will be deleted in a few release")
+                        print(
+                            "export_selected is now renamed use_selection, and will be deleted in a few release"
+                        )
                     else:
                         setattr(self, k, v)
                 self.will_save_settings = True
 
             except (AttributeError, TypeError):
-                self.report({"ERROR"}, "Loading export settings failed. Removed corrupted settings")
+                self.report(
+                    {"ERROR"},
+                    "Loading export settings failed. Removed corrupted settings",
+                )
                 del context.scene[self.scene_key]
 
         import sys
+
         preferences = bpy.context.preferences
         for addon_name in preferences.addons.keys():
             try:
-                if hasattr(sys.modules[addon_name], 'glTF2ExportUserExtension') or hasattr(sys.modules[addon_name], 'glTF2ExportUserExtensions'):
-                    extension_panel_unregister_functors.append(sys.modules[addon_name].register_panel())
+                if hasattr(
+                    sys.modules[addon_name], "glTF2ExportUserExtension"
+                ) or hasattr(sys.modules[addon_name], "glTF2ExportUserExtensions"):
+                    extension_panel_unregister_functors.append(
+                        sys.modules[addon_name].register_panel()
+                    )
             except Exception:
                 pass
 
@@ -499,17 +539,16 @@ class ExportGLTF2_Base:
         # find all props to save
         exceptional = [
             # options that don't start with 'export_'
-            'use_selection',
-            'use_visible',
-            'use_renderable',
-            'use_active_collection',
-            'use_mesh_edges',
-            'use_mesh_vertices',
+            "use_selection",
+            "use_mesh_edges",
+            "use_mesh_vertices",
         ]
         all_props = self.properties
         export_props = {
-            x: getattr(self, x) for x in dir(all_props)
-            if (x.startswith("export_") or x in exceptional) and all_props.get(x) is not None
+            x: getattr(self, x)
+            for x in dir(all_props)
+            if (x.startswith("export_") or x in exceptional)
+            and all_props.get(x) is not None
         }
 
         context.scene[self.scene_key] = export_props
@@ -527,136 +566,156 @@ class ExportGLTF2_Base:
         # All custom export settings are stored in this container.
         export_settings = {}
 
-        export_settings['timestamp'] = datetime.datetime.now()
+        export_settings["timestamp"] = datetime.datetime.now()
 
-        export_settings['gltf_filepath'] = self.filepath
-        export_settings['gltf_filedirectory'] = os.path.dirname(export_settings['gltf_filepath']) + '/'
-        export_settings['gltf_texturedirectory'] = os.path.join(
-            export_settings['gltf_filedirectory'],
+        export_settings["gltf_filepath"] = self.filepath
+        export_settings["gltf_filedirectory"] = (
+            os.path.dirname(export_settings["gltf_filepath"]) + "/"
+        )
+        export_settings["gltf_texturedirectory"] = os.path.join(
+            export_settings["gltf_filedirectory"],
             self.export_texture_dir,
         )
         export_settings['gltf_keep_original_textures'] = self.export_keep_originals
 
-        export_settings['gltf_format'] = self.export_format
-        export_settings['gltf_image_format'] = self.export_image_format
-        export_settings['gltf_copyright'] = self.export_copyright
-        export_settings['gltf_texcoords'] = self.export_texcoords
-        export_settings['gltf_normals'] = self.export_normals
-        export_settings['gltf_tangents'] = self.export_tangents and self.export_normals
-        export_settings['gltf_loose_edges'] = self.use_mesh_edges
-        export_settings['gltf_loose_points'] = self.use_mesh_vertices
+        export_settings["gltf_format"] = self.export_format
+        export_settings["gltf_image_format"] = self.export_image_format
+        export_settings["gltf_copyright"] = self.export_copyright
+        export_settings["gltf_texcoords"] = self.export_texcoords
+        export_settings["gltf_normals"] = self.export_normals
+        export_settings["gltf_tangents"] = self.export_tangents and self.export_normals
+        export_settings["gltf_loose_edges"] = self.use_mesh_edges
+        export_settings["gltf_loose_points"] = self.use_mesh_vertices
 
         if self.is_draco_available:
-            export_settings['gltf_draco_mesh_compression'] = self.export_draco_mesh_compression_enable
-            export_settings['gltf_draco_mesh_compression_level'] = self.export_draco_mesh_compression_level
-            export_settings['gltf_draco_position_quantization'] = self.export_draco_position_quantization
-            export_settings['gltf_draco_normal_quantization'] = self.export_draco_normal_quantization
-            export_settings['gltf_draco_texcoord_quantization'] = self.export_draco_texcoord_quantization
-            export_settings['gltf_draco_color_quantization'] = self.export_draco_color_quantization
-            export_settings['gltf_draco_generic_quantization'] = self.export_draco_generic_quantization
+            export_settings[
+                "gltf_draco_mesh_compression"
+            ] = self.export_draco_mesh_compression_enable
+            export_settings[
+                "gltf_draco_mesh_compression_level"
+            ] = self.export_draco_mesh_compression_level
+            export_settings[
+                "gltf_draco_position_quantization"
+            ] = self.export_draco_position_quantization
+            export_settings[
+                "gltf_draco_normal_quantization"
+            ] = self.export_draco_normal_quantization
+            export_settings[
+                "gltf_draco_texcoord_quantization"
+            ] = self.export_draco_texcoord_quantization
+            export_settings[
+                "gltf_draco_color_quantization"
+            ] = self.export_draco_color_quantization
+            export_settings[
+                "gltf_draco_generic_quantization"
+            ] = self.export_draco_generic_quantization
         else:
-            export_settings['gltf_draco_mesh_compression'] = False
+            export_settings["gltf_draco_mesh_compression"] = False
 
-        export_settings['gltf_materials'] = self.export_materials
-        export_settings['gltf_colors'] = self.export_colors
-        export_settings['gltf_cameras'] = self.export_cameras
+        export_settings["gltf_materials"] = self.export_materials
+        export_settings["gltf_colors"] = self.export_colors
+        export_settings["gltf_cameras"] = self.export_cameras
 
         # compatibility after renaming export_selected to use_selection
         if self.export_selected is True:
-            self.report({"WARNING"}, "export_selected is now renamed use_selection, and will be deleted in a few release")
-            export_settings['gltf_selected'] = self.export_selected
+            self.report(
+                {"WARNING"},
+                "export_selected is now renamed use_selection, and will be deleted in a few release",
+            )
+            export_settings["gltf_selected"] = self.export_selected
         else:
-            export_settings['gltf_selected'] = self.use_selection
+            export_settings["gltf_selected"] = self.use_selection
 
         export_settings['gltf_visible'] = self.use_visible
         export_settings['gltf_renderable'] = self.use_renderable
         export_settings['gltf_active_collection'] = self.use_active_collection
 
         # export_settings['gltf_selected'] = self.use_selection This can be uncomment when removing compatibility of export_selected
-        export_settings['gltf_layers'] = True  # self.export_layers
-        export_settings['gltf_extras'] = self.export_extras
-        export_settings['gltf_yup'] = self.export_yup
-        export_settings['gltf_apply'] = self.export_apply
-        export_settings['gltf_current_frame'] = self.export_current_frame
-        export_settings['gltf_animations'] = self.export_animations
+        export_settings["gltf_layers"] = True  # self.export_layers
+        export_settings["gltf_extras"] = self.export_extras
+        export_settings["gltf_yup"] = self.export_yup
+        export_settings["gltf_apply"] = self.export_apply
+        export_settings["gltf_current_frame"] = self.export_current_frame
+        export_settings["gltf_animations"] = self.export_animations
         if self.export_animations:
-            export_settings['gltf_frame_range'] = self.export_frame_range
-            export_settings['gltf_force_sampling'] = self.export_force_sampling
+            export_settings["gltf_frame_range"] = self.export_frame_range
+            export_settings["gltf_force_sampling"] = self.export_force_sampling
             if self.export_force_sampling:
-                export_settings['gltf_def_bones'] = self.export_def_bones
+                export_settings["gltf_def_bones"] = self.export_def_bones
             else:
-                export_settings['gltf_def_bones'] = False
-            export_settings['gltf_nla_strips'] = self.export_nla_strips
+                export_settings["gltf_def_bones"] = False
+            export_settings["gltf_nla_strips"] = self.export_nla_strips
         else:
-            export_settings['gltf_frame_range'] = False
-            export_settings['gltf_move_keyframes'] = False
-            export_settings['gltf_force_sampling'] = False
-            export_settings['gltf_def_bones'] = False
-        export_settings['gltf_skins'] = self.export_skins
+            export_settings["gltf_frame_range"] = False
+            export_settings["gltf_move_keyframes"] = False
+            export_settings["gltf_force_sampling"] = False
+            export_settings["gltf_def_bones"] = False
+        export_settings["gltf_skins"] = self.export_skins
         if self.export_skins:
-            export_settings['gltf_all_vertex_influences'] = self.export_all_influences
+            export_settings["gltf_all_vertex_influences"] = self.export_all_influences
         else:
-            export_settings['gltf_all_vertex_influences'] = False
-        export_settings['gltf_frame_step'] = self.export_frame_step
-        export_settings['gltf_morph'] = self.export_morph
+            export_settings["gltf_all_vertex_influences"] = False
+        export_settings["gltf_frame_step"] = self.export_frame_step
+        export_settings["gltf_morph"] = self.export_morph
         if self.export_morph:
-            export_settings['gltf_morph_normal'] = self.export_morph_normal
+            export_settings["gltf_morph_normal"] = self.export_morph_normal
         else:
-            export_settings['gltf_morph_normal'] = False
+            export_settings["gltf_morph_normal"] = False
         if self.export_morph and self.export_morph_normal:
-            export_settings['gltf_morph_tangent'] = self.export_morph_tangent
+            export_settings["gltf_morph_tangent"] = self.export_morph_tangent
         else:
-            export_settings['gltf_morph_tangent'] = False
+            export_settings["gltf_morph_tangent"] = False
 
-        export_settings['gltf_lights'] = self.export_lights
-        export_settings['gltf_displacement'] = self.export_displacement
+        export_settings["gltf_lights"] = self.export_lights
+        export_settings["gltf_displacement"] = self.export_displacement
 
-        export_settings['gltf_binary'] = bytearray()
-        export_settings['gltf_binaryfilename'] = (
-            os.path.splitext(os.path.basename(self.filepath))[0] + '.bin'
+        export_settings["gltf_binary"] = bytearray()
+        export_settings["gltf_binaryfilename"] = (
+            os.path.splitext(os.path.basename(self.filepath))[0] + ".bin"
         )
 
         # MSFS
-        export_settings['emulate_asobo_optimization'] = self.emulate_asobo_optimization
+        export_settings["emulate_asobo_optimization"] = self.emulate_asobo_optimization
 
         user_extensions = []
         pre_export_callbacks = []
         post_export_callbacks = []
 
         import sys
+
         preferences = bpy.context.preferences
         for addon_name in preferences.addons.keys():
             try:
                 module = sys.modules[addon_name]
             except Exception:
                 continue
-            if hasattr(module, 'glTF2ExportUserExtension'):
+            if hasattr(module, "glTF2ExportUserExtension"):
                 extension_ctor = module.glTF2ExportUserExtension
                 user_extensions.append(extension_ctor())
-            if hasattr(module, 'glTF2ExportUserExtensions'):
+            if hasattr(module, "glTF2ExportUserExtensions"):
                 extension_ctors = module.glTF2ExportUserExtensions
                 for extension_ctor in extension_ctors:
                     user_extensions.append(extension_ctor())
-            if hasattr(module, 'glTF2_pre_export_callback'):
+            if hasattr(module, "glTF2_pre_export_callback"):
                 pre_export_callbacks.append(module.glTF2_pre_export_callback)
-            if hasattr(module, 'glTF2_post_export_callback'):
+            if hasattr(module, "glTF2_post_export_callback"):
                 post_export_callbacks.append(module.glTF2_post_export_callback)
-        export_settings['gltf_user_extensions'] = user_extensions
-        export_settings['pre_export_callbacks'] = pre_export_callbacks
-        export_settings['post_export_callbacks'] = post_export_callbacks
+        export_settings["gltf_user_extensions"] = user_extensions
+        export_settings["pre_export_callbacks"] = pre_export_callbacks
+        export_settings["post_export_callbacks"] = post_export_callbacks
 
         return gltf2_blender_export.save(context, export_settings)
 
     def draw(self, context):
-        pass # Is needed to get panels available
+        pass  # Is needed to get panels available
 
 
 class GLTFMSFS_PT_export_main(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = ""
     bl_parent_id = "FILE_PT_operator"
-    bl_options = {'HIDE_HEADER'}
+    bl_options = {"HIDE_HEADER"}
 
     @classmethod
     def poll(cls, context):
@@ -673,22 +732,19 @@ class GLTFMSFS_PT_export_main(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        layout.prop(operator, 'export_format')
-        if operator.export_format == 'GLTF_SEPARATE':
-            layout.prop(operator, 'export_keep_originals')
-            if operator.export_keep_originals is False:
-                layout.prop(operator, 'export_texture_dir', icon='FILE_FOLDER')
-
-        layout.prop(operator, 'export_copyright')
-        layout.prop(operator, 'will_save_settings')
+        layout.prop(operator, "export_format")
+        if operator.export_format == "GLTF_SEPARATE":
+            layout.prop(operator, "export_texture_dir", icon="FILE_FOLDER")
+        layout.prop(operator, "export_copyright")
+        layout.prop(operator, "will_save_settings")
 
 
 class GLTFMSFS_PT_export_include(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Include"
     bl_parent_id = "FILE_PT_operator"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -705,24 +761,21 @@ class GLTFMSFS_PT_export_include(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        col = layout.column(heading = "Limit to", align = True)
-        col.prop(operator, 'use_selection')
-        col.prop(operator, 'use_visible')
-        col.prop(operator, 'use_renderable')
-        col.prop(operator, 'use_active_collection')
+        col = layout.column(heading="Limit to", align=True)
+        col.prop(operator, "use_selection")
 
-        col = layout.column(heading = "Data", align = True)
-        col.prop(operator, 'export_extras')
-        col.prop(operator, 'export_cameras')
-        col.prop(operator, 'export_lights')
+        col = layout.column(heading="Data", align=True)
+        col.prop(operator, "export_extras")
+        col.prop(operator, "export_cameras")
+        col.prop(operator, "export_lights")
 
 
 class GLTFMSFS_PT_export_transform(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Transform"
     bl_parent_id = "FILE_PT_operator"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -739,15 +792,15 @@ class GLTFMSFS_PT_export_transform(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        layout.prop(operator, 'export_yup')
+        layout.prop(operator, "export_yup")
 
 
 class GLTFMSFS_PT_export_geometry(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Geometry"
     bl_parent_id = "FILE_PT_operator"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -764,34 +817,37 @@ class GLTFMSFS_PT_export_geometry(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        layout.prop(operator, 'export_apply')
-        layout.prop(operator, 'export_texcoords')
-        layout.prop(operator, 'export_normals')
+        layout.prop(operator, "export_apply")
+        layout.prop(operator, "export_texcoords")
+        layout.prop(operator, "export_normals")
         col = layout.column()
         col.active = operator.export_normals
-        col.prop(operator, 'export_tangents')
-        layout.prop(operator, 'export_colors')
+        col.prop(operator, "export_tangents")
+        layout.prop(operator, "export_colors")
 
         col = layout.column()
-        col.prop(operator, 'use_mesh_edges')
-        col.prop(operator, 'use_mesh_vertices')
+        col.prop(operator, "use_mesh_edges")
+        col.prop(operator, "use_mesh_vertices")
 
-        layout.prop(operator, 'export_materials')
+        layout.prop(operator, "export_materials")
         col = layout.column()
         col.active = operator.export_materials == "EXPORT"
-        col.prop(operator, 'export_image_format')
+        col.prop(operator, "export_image_format")
 
 
 class GLTFMSFS_PT_export_geometry_compression(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Compression"
     bl_parent_id = "GLTFMSFS_PT_export_geometry"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     def __init__(self):
         from io_scene_gltf2_msfs.io.com import gltf2_io_draco_compression_extension
-        self.is_draco_available = gltf2_io_draco_compression_extension.dll_exists(quiet=True)
+
+        self.is_draco_available = gltf2_io_draco_compression_extension.dll_exists(
+            quiet=True
+        )
 
     @classmethod
     def poll(cls, context):
@@ -814,22 +870,24 @@ class GLTFMSFS_PT_export_geometry_compression(bpy.types.Panel):
         operator = sfile.active_operator
 
         layout.active = operator.export_draco_mesh_compression_enable
-        layout.prop(operator, 'export_draco_mesh_compression_level')
+        layout.prop(operator, "export_draco_mesh_compression_level")
 
         col = layout.column(align=True)
-        col.prop(operator, 'export_draco_position_quantization', text="Quantize Position")
-        col.prop(operator, 'export_draco_normal_quantization', text="Normal")
-        col.prop(operator, 'export_draco_texcoord_quantization', text="Tex Coord")
-        col.prop(operator, 'export_draco_color_quantization', text="Color")
-        col.prop(operator, 'export_draco_generic_quantization', text="Generic")
+        col.prop(
+            operator, "export_draco_position_quantization", text="Quantize Position"
+        )
+        col.prop(operator, "export_draco_normal_quantization", text="Normal")
+        col.prop(operator, "export_draco_texcoord_quantization", text="Tex Coord")
+        col.prop(operator, "export_draco_color_quantization", text="Color")
+        col.prop(operator, "export_draco_generic_quantization", text="Generic")
 
 
 class GLTFMSFS_PT_export_animation(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Animation"
     bl_parent_id = "FILE_PT_operator"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -846,15 +904,15 @@ class GLTFMSFS_PT_export_animation(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        layout.prop(operator, 'export_current_frame')
+        layout.prop(operator, "export_current_frame")
 
 
 class GLTFMSFS_PT_export_animation_export(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Animation"
     bl_parent_id = "GLTFMSFS_PT_export_animation"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -878,22 +936,22 @@ class GLTFMSFS_PT_export_animation_export(bpy.types.Panel):
 
         layout.active = operator.export_animations
 
-        layout.prop(operator, 'export_frame_range')
-        layout.prop(operator, 'export_frame_step')
-        layout.prop(operator, 'export_force_sampling')
-        layout.prop(operator, 'export_nla_strips')
+        layout.prop(operator, "export_frame_range")
+        layout.prop(operator, "export_frame_step")
+        layout.prop(operator, "export_force_sampling")
+        layout.prop(operator, "export_nla_strips")
 
         row = layout.row()
         row.active = operator.export_force_sampling
-        row.prop(operator, 'export_def_bones')
+        row.prop(operator, "export_def_bones")
 
 
 class GLTFMSFS_PT_export_animation_shapekeys(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Shape Keys"
     bl_parent_id = "GLTFMSFS_PT_export_animation"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -917,18 +975,18 @@ class GLTFMSFS_PT_export_animation_shapekeys(bpy.types.Panel):
 
         layout.active = operator.export_morph
 
-        layout.prop(operator, 'export_morph_normal')
+        layout.prop(operator, "export_morph_normal")
         col = layout.column()
         col.active = operator.export_morph_normal
-        col.prop(operator, 'export_morph_tangent')
+        col.prop(operator, "export_morph_tangent")
 
 
 class GLTFMSFS_PT_export_animation_skinning(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Skinning"
     bl_parent_id = "GLTFMSFS_PT_export_animation"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -951,33 +1009,38 @@ class GLTFMSFS_PT_export_animation_skinning(bpy.types.Panel):
         operator = sfile.active_operator
 
         layout.active = operator.export_skins
-        layout.prop(operator, 'export_all_influences')
+        layout.prop(operator, "export_all_influences")
+
 
 class GLTFMSFS_PT_export_user_extensions(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Extensions"
     bl_parent_id = "FILE_PT_operator"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        return operator.bl_idname == "EXPORT_SCENE_OT_gltf_msfs" and operator.has_active_extensions
+        return (
+            operator.bl_idname == "EXPORT_SCENE_OT_gltf_msfs"
+            and operator.has_active_extensions
+        )
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
+
 class GLTFMSFS_PT_export_msfs(bpy.types.Panel):
-    bl_space_type = 'FILE_BROWSER'
-    bl_region_type = 'TOOL_PROPS'
+    bl_space_type = "FILE_BROWSER"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "Flight Simulator"
     bl_parent_id = "FILE_PT_operator"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
     def poll(cls, context):
@@ -994,100 +1057,112 @@ class GLTFMSFS_PT_export_msfs(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        layout.prop(operator, 'emulate_asobo_optimization')
+        layout.prop(operator, "emulate_asobo_optimization")
 
 
 class ExportMSFSGLTF2(bpy.types.Operator, ExportGLTF2_Base, ExportHelper):
     """Export scene as glTF 2.0 file for MSFS"""
-    bl_idname = 'export_scene.gltf_msfs'
-    bl_label = 'Export glTF 2.0 for MSFS'
 
-    filename_ext = ''
+    bl_idname = "export_scene.gltf_msfs"
+    bl_label = "Export glTF 2.0 for MSFS"
 
-    filter_glob: StringProperty(default='*.glb;*.gltf', options={'HIDDEN'})
+    filename_ext = ""
+
+    filter_glob: StringProperty(default="*.glb;*.gltf", options={"HIDDEN"})
 
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportMSFSGLTF2.bl_idname, text='glTF 2.0 for MSFS (.glb/.gltf)')
+    self.layout.operator(
+        ExportMSFSGLTF2.bl_idname, text="glTF 2.0 for MSFS (.glb/.gltf)"
+    )
 
 
 class ImportMSFSGLTF2(Operator, ImportHelper):
     """Load a glTF 2.0 file for MSFS"""
-    bl_idname = 'import_scene.gltf_msfs'
-    bl_label = 'Import glTF 2.0 for MSFS'
-    bl_options = {'REGISTER', 'UNDO'}
 
-    filter_glob: StringProperty(default="*.glb;*.gltf", options={'HIDDEN'})
+    bl_idname = "import_scene.gltf_msfs"
+    bl_label = "Import glTF 2.0 for MSFS"
+    bl_options = {"REGISTER", "UNDO"}
+
+    filter_glob: StringProperty(default="*.glb;*.gltf", options={"HIDDEN"})
 
     files: CollectionProperty(
         name="File Path",
         type=bpy.types.OperatorFileListElement,
     )
 
-    loglevel: IntProperty(
-        name='Log Level',
-        description="Log Level")
+    loglevel: IntProperty(name="Log Level", description="Log Level")
 
     import_pack_images: BoolProperty(
-        name='Pack Images',
-        description='Pack all images into .blend file',
-        default=True
+        name="Pack Images", description="Pack all images into .blend file", default=True
     )
 
     merge_vertices: BoolProperty(
-        name='Merge Vertices',
+        name="Merge Vertices",
         description=(
-            'The glTF format requires discontinuous normals, UVs, and '
-            'other vertex attributes to be stored as separate vertices, '
-            'as required for rendering on typical graphics hardware. '
-            'This option attempts to combine co-located vertices where possible. '
-            'Currently cannot combine verts with different normals'
+            "The glTF format requires discontinuous normals, UVs, and "
+            "other vertex attributes to be stored as separate vertices, "
+            "as required for rendering on typical graphics hardware. "
+            "This option attempts to combine co-located vertices where possible. "
+            "Currently cannot combine verts with different normals"
         ),
         default=True,
     )
 
     import_shading: EnumProperty(
         name="Shading",
-        items=(("NORMALS", "Use Normal Data", ""),
-               ("FLAT", "Flat Shading", ""),
-               ("SMOOTH", "Smooth Shading", "")),
+        items=(
+            ("NORMALS", "Use Normal Data", ""),
+            ("FLAT", "Flat Shading", ""),
+            ("SMOOTH", "Smooth Shading", ""),
+        ),
         description="How normals are computed during import",
-        default="NORMALS")
+        default="NORMALS",
+    )
 
     bone_heuristic: EnumProperty(
         name="Bone Dir",
         items=(
-            ("BLENDER", "Blender (best for re-importing)",
+            (
+                "BLENDER",
+                "Blender (best for re-importing)",
                 "Good for re-importing glTFs exported from Blender. "
-                "Bone tips are placed on their local +Y axis (in glTF space)"),
-            ("TEMPERANCE", "Temperance (average)",
+                "Bone tips are placed on their local +Y axis (in glTF space)",
+            ),
+            (
+                "TEMPERANCE",
+                "Temperance (average)",
                 "Decent all-around strategy. "
                 "A bone with one child has its tip placed on the local axis "
-                "closest to its child"),
-            ("FORTUNE", "Fortune (may look better, less accurate)",
+                "closest to its child",
+            ),
+            (
+                "FORTUNE",
+                "Fortune (may look better, less accurate)",
                 "Might look better than Temperance, but also might have errors. "
                 "A bone with one child has its tip placed at its child's root. "
-                "Non-uniform scalings may get messed up though, so beware"),
+                "Non-uniform scalings may get messed up though, so beware",
+            ),
         ),
         description="Heuristic for placing bones. Tries to make bones pretty",
         default="TEMPERANCE",
     )
 
     guess_original_bind_pose: BoolProperty(
-        name='Guess Original Bind Pose',
+        name="Guess Original Bind Pose",
         description=(
-            'Try to guess the original bind pose for skinned meshes from '
-            'the inverse bind matrices. '
-            'When off, use default/rest pose as bind pose'
+            "Try to guess the original bind pose for skinned meshes from "
+            "the inverse bind matrices. "
+            "When off, use default/rest pose as bind pose"
         ),
         default=False,
     )
 
     include_sim_textures: BoolProperty(
-        name='Include Flight Simulator textures',
-        description='Searches for textures used in the file in the Flight Simulator '
-                    'install directory. This setting is only used if importing a '
-                    'file from outside of the simulator directory',
+        name="Include Flight Simulator textures",
+        description="Searches for textures used in the file in the Flight Simulator "
+        "install directory. This setting is only used if importing a "
+        "file from outside of the simulator directory",
         default=True,
     )
 
@@ -1097,12 +1172,12 @@ class ImportMSFSGLTF2(Operator, ImportHelper):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        layout.prop(self, 'import_pack_images')
-        layout.prop(self, 'merge_vertices')
-        layout.prop(self, 'import_shading')
-        layout.prop(self, 'guess_original_bind_pose')
-        layout.prop(self, 'bone_heuristic')
-        layout.prop(self, 'include_sim_textures')
+        layout.prop(self, "import_pack_images")
+        layout.prop(self, "merge_vertices")
+        layout.prop(self, "import_shading")
+        layout.prop(self, "guess_original_bind_pose")
+        layout.prop(self, "bone_heuristic")
+        layout.prop(self, "include_sim_textures")
 
     def execute(self, context):
         return self.import_gltf2(context)
@@ -1112,19 +1187,23 @@ class ImportMSFSGLTF2(Operator, ImportHelper):
 
         self.set_debug_log()
         import_settings = self.as_keywords()
-        if __name__ in context.preferences.addons: # prevent an error during github workflow
+        if (
+            __name__ in context.preferences.addons
+        ):  # prevent an error during github workflow
             addon_settings = context.preferences.addons[__name__].preferences
         else:
             addon_settings = None
 
         if self.files:
             # Multiple file import
-            ret = {'CANCELLED'}
+            ret = {"CANCELLED"}
             dirname = os.path.dirname(self.filepath)
             for file in self.files:
                 path = os.path.join(dirname, file.name)
-                if self.unit_import(path, import_settings, addon_settings) == {'FINISHED'}:
-                    ret = {'FINISHED'}
+                if self.unit_import(path, import_settings, addon_settings) == {
+                    "FINISHED"
+                }:
+                    ret = {"FINISHED"}
             return ret
         else:
             # Single file import
@@ -1149,14 +1228,15 @@ class ImportMSFSGLTF2(Operator, ImportHelper):
 
             gltf_importer.log.removeHandler(gltf_importer.log_handler)
 
-            return {'FINISHED'}
+            return {"FINISHED"}
 
         except ImportError as e:
-            self.report({'ERROR'}, e.args[0])
-            return {'CANCELLED'}
+            self.report({"ERROR"}, e.args[0])
+            return {"CANCELLED"}
 
     def set_debug_log(self):
         import logging
+
         if bpy.app.debug_value == 0:
             self.loglevel = logging.CRITICAL
         elif bpy.app.debug_value == 1:
@@ -1168,71 +1248,95 @@ class ImportMSFSGLTF2(Operator, ImportHelper):
         else:
             self.loglevel = logging.NOTSET
 
+
 class ImporterExporterPreferences(AddonPreferences):
     bl_idname = __name__
 
     texconv_file: StringProperty(
-        name='Folder path',
-        description='Absolute path to Microsoft texconv tool',
-        default='',
-        subtype='FILE_PATH',
+        name="Folder path",
+        description="Absolute path to Microsoft texconv tool",
+        default="",
+        subtype="FILE_PATH",
     )
 
     texture_output_dir: StringProperty(
-        name='Folder path',
-        description='Location where converted textures are saved',
-        default='',
-        subtype='DIR_PATH',
+        name="Folder path",
+        description="Location where converted textures are saved",
+        default="",
+        subtype="DIR_PATH",
     )
 
     flight_sim_dir: StringProperty(
-        name='Folder path',
-        description='Absolute path to the Flight Simulator installation '
-                    '(where your Community and Official folders are)',
-        default='',
-        subtype='DIR_PATH'
+        name="Folder path",
+        description="Absolute path to the Flight Simulator installation "
+        "(where your Community and Official folders are)",
+        default="",
+        subtype="DIR_PATH",
     )
-    
+
     def draw(self, context):
         layout = self.layout
         box = layout.box()
 
         # texconv
         row = box.row()
-        row.label(text='Microsoft Texconv Tool')
+        row.label(text="Microsoft Texconv Tool")
         row = box.row()
-        row.label(text = 'This tool automatically converts DDS images for usage '
-                        'in Blender')
+        row.label(
+            text="This tool automatically converts DDS images for usage " "in Blender"
+        )
         row = box.row()
-        row.operator('wm.url_open', text="Download texconv.exe").url = 'https://github.com/microsoft/DirectXTex/releases/latest/download/texconv.exe'
+        row.operator(
+            "wm.url_open", text="Download texconv.exe"
+        ).url = "https://github.com/microsoft/DirectXTex/releases/latest/download/texconv.exe"
         row = box.row()
-        row.prop(self, 'texconv_file', text = 'Path to texconv.exe')
+        row.prop(self, "texconv_file", text="Path to texconv.exe")
 
         texconv_path = pathlib.Path(self.texconv_file)
-        if self.texconv_file == '' or not texconv_path.exists():
+        if self.texconv_file == "" or not texconv_path.exists():
             row = box.row()
-            row.label(text='No texconv.exe file has been selected. Texture import is disabled', icon='ERROR')
+            row.label(
+                text="No texconv.exe file has been selected. Texture import is disabled",
+                icon="ERROR",
+            )
 
         # Texture output directory
         box = layout.box()
         row = box.row()
-        row.prop(self, 'texture_output_dir', text = 'Path for converted textures')
+        row.prop(self, "texture_output_dir", text="Path for converted textures")
         texture_path = pathlib.Path(self.texture_output_dir)
-        if self.texture_output_dir == '' or not texture_path.exists() or not texture_path.is_dir():
+        if (
+            self.texture_output_dir == ""
+            or not texture_path.exists()
+            or not texture_path.is_dir()
+        ):
             row = box.row()
-            row.label(text='No valid texture output directory entered. Texture import is disabled', icon='ERROR')
+            row.label(
+                text="No valid texture output directory entered. Texture import is disabled",
+                icon="ERROR",
+            )
 
         # Flight simulator installation directory
         box = layout.box()
         row = box.row()
-        row.prop(self, 'flight_sim_dir', text='Path to Flight Simulator (root level)')
+        row.prop(self, "flight_sim_dir", text="Path to Flight Simulator (root level)")
         flightsim_path = pathlib.Path(self.flight_sim_dir)
-        if self.flight_sim_dir == '' or not flightsim_path.exists() or not flightsim_path.is_dir():
+        if (
+            self.flight_sim_dir == ""
+            or not flightsim_path.exists()
+            or not flightsim_path.is_dir()
+        ):
             row = box.row()
-            row.label(text='No valid Flight Simulator path entered. Texture import is disabled', icon='ERROR')
-    
+            row.label(
+                text="No valid Flight Simulator path entered. Texture import is disabled",
+                icon="ERROR",
+            )
+
+
 def menu_func_import(self, context):
-    self.layout.operator(ImportMSFSGLTF2.bl_idname, text='glTF 2.0 for MSFS (.glb/.gltf)')
+    self.layout.operator(
+        ImportMSFSGLTF2.bl_idname, text="glTF 2.0 for MSFS (.glb/.gltf)"
+    )
 
 
 classes = (
@@ -1249,15 +1353,19 @@ classes = (
     GLTFMSFS_PT_export_user_extensions,
     GLTFMSFS_PT_export_msfs,
     ImportMSFSGLTF2,
-    ImporterExporterPreferences
+    ImporterExporterPreferences,
 )
 
-from io_scene_gltf2_msfs.blender.com import gltf2_blender_flight_sim_material_ui, gltf2_blender_flight_sim_material_properties
+from io_scene_gltf2_msfs.blender.com import (
+    gltf2_blender_flight_sim_material_ui,
+    gltf2_blender_flight_sim_material_properties,
+)
 
 modules = (
     gltf2_blender_flight_sim_material_ui,
-    gltf2_blender_flight_sim_material_properties
+    gltf2_blender_flight_sim_material_properties,
 )
+
 
 def register():
     for c in classes:

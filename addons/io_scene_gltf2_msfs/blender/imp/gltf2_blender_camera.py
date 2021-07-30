@@ -16,8 +16,9 @@ import bpy
 from ..com.gltf2_blender_extras import set_extras
 
 
-class BlenderCamera():
+class BlenderCamera:
     """Blender Camera."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -54,6 +55,5 @@ class BlenderCamera():
             else:
                 # Infinite projection
                 cam.clip_end = 1e12  # some big number
-
 
         return cam

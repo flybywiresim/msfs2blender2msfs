@@ -3,6 +3,8 @@
 Blender glTF 2.0 Importer and Exporter
 ======================================
 
+<a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
+
 Documentation
 -------------
 
@@ -59,6 +61,11 @@ Debugging
 
 - [Debug with PyCharm](https://code.blender.org/2015/10/debugging-python-code-with-pycharm) **NOTE:** If you are using Blender 2.80, you need the [updated debugger script](https://github.com/ux3d/random-blender-addons/blob/master/remote_debugger.py)
 - [Debug with VSCode](DEBUGGING.md)
+
+Linting
+-------------------------
+
+This project uses [Black](https://github.com/psf/black) code formatting. To install the Black formatter locally, open a new command shell at the project root and type `pip install -r requirements.txt`. To run the linter, type `black ./` at the project root. If that command doesn't work, type `python -m black ./`. Linting also runs with a pre-commit hook.
 
 Continuous Integration Tests
 ----------------------------

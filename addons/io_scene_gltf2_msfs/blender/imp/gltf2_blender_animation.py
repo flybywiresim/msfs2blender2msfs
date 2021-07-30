@@ -18,8 +18,9 @@ from .gltf2_blender_animation_utils import simulate_stash, restore_animation_on_
 from .gltf2_blender_vnode import VNode
 
 
-class BlenderAnimation():
+class BlenderAnimation:
     """Dispatch Animation to node or morph weights animation."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -54,5 +55,5 @@ class BlenderAnimation():
                 continue
 
             restore_animation_on_object(obj, animation_name)
-            if obj.data and hasattr(obj.data, 'shape_keys'):
+            if obj.data and hasattr(obj.data, "shape_keys"):
                 restore_animation_on_object(obj.data.shape_keys, animation_name)

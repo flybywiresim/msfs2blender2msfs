@@ -16,30 +16,36 @@ import typing
 import math
 from mathutils import Matrix, Vector, Quaternion, Euler
 
-from io_scene_gltf2_msfs.blender.com.gltf2_blender_data_path import get_target_property_name
+from io_scene_gltf2_msfs.blender.com.gltf2_blender_data_path import (
+    get_target_property_name,
+)
 
 
-def list_to_mathutils(values: typing.List[float], data_path: str) -> typing.Union[Vector, Quaternion, Euler]:
+def list_to_mathutils(
+    values: typing.List[float], data_path: str
+) -> typing.Union[Vector, Quaternion, Euler]:
     """Transform a list to blender py object."""
     target = get_target_property_name(data_path)
 
-    if target == 'delta_location':
+    if target == "delta_location":
         return Vector(values)  # TODO Should be Vector(values) - Vector(something)?
-    elif target == 'delta_rotation_euler':
-        return Euler(values).to_quaternion()  # TODO Should be Euler(values).to_quaternion() @ something?
-    elif target == 'location':
+    elif target == "delta_rotation_euler":
+        return Euler(
+            values
+        ).to_quaternion()  # TODO Should be Euler(values).to_quaternion() @ something?
+    elif target == "location":
         return Vector(values)
-    elif target == 'rotation_axis_angle':
+    elif target == "rotation_axis_angle":
         angle = values[0]
         axis = values[1:]
         return Quaternion(axis, math.radians(angle))
-    elif target == 'rotation_euler':
+    elif target == "rotation_euler":
         return Euler(values).to_quaternion()
-    elif target == 'rotation_quaternion':
+    elif target == "rotation_quaternion":
         return Quaternion(values)
-    elif target == 'scale':
+    elif target == "scale":
         return Vector(values)
-    elif target == 'value':
+    elif target == "value":
         return Vector(values)
 
     return values
@@ -59,17 +65,21 @@ def mathutils_to_gltf(x: typing.Union[Vector, Quaternion]) -> typing.List[float]
 def to_yup() -> Matrix:
     """Transform to Yup."""
     return Matrix(
-        ((1.0, 0.0, 0.0, 0.0),
-         (0.0, 0.0, 1.0, 0.0),
-         (0.0, -1.0, 0.0, 0.0),
-         (0.0, 0.0, 0.0, 1.0))
+        (
+            (1.0, 0.0, 0.0, 0.0),
+            (0.0, 0.0, 1.0, 0.0),
+            (0.0, -1.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0, 1.0),
+        )
     )
 
 
 to_zup = to_yup
 
 
-def swizzle_yup(v: typing.Union[Vector, Quaternion], data_path: str) -> typing.Union[Vector, Quaternion]:
+def swizzle_yup(
+    v: typing.Union[Vector, Quaternion], data_path: str
+) -> typing.Union[Vector, Quaternion]:
     """Manage Yup."""
     target = get_target_property_name(data_path)
     swizzle_func = {
@@ -80,7 +90,7 @@ def swizzle_yup(v: typing.Union[Vector, Quaternion], data_path: str) -> typing.U
         "rotation_euler": swizzle_yup_rotation,
         "rotation_quaternion": swizzle_yup_rotation,
         "scale": swizzle_yup_scale,
-        "value": swizzle_yup_value
+        "value": swizzle_yup_value,
     }.get(target)
 
     if swizzle_func is None:
@@ -109,8 +119,11 @@ def swizzle_yup_value(value: typing.Any) -> typing.Any:
     return value
 
 
-def transform(v: typing.Union[Vector, Quaternion], data_path: str, transform: Matrix = Matrix.Identity(4)) -> typing \
-        .Union[Vector, Quaternion]:
+def transform(
+    v: typing.Union[Vector, Quaternion],
+    data_path: str,
+    transform: Matrix = Matrix.Identity(4),
+) -> typing.Union[Vector, Quaternion]:
     """Manage transformations."""
     target = get_target_property_name(data_path)
     transform_func = {
@@ -121,7 +134,7 @@ def transform(v: typing.Union[Vector, Quaternion], data_path: str, transform: Ma
         "rotation_euler": transform_rotation,
         "rotation_quaternion": transform_rotation,
         "scale": transform_scale,
-        "value": transform_value
+        "value": transform_value,
     }.get(target)
 
     if transform_func is None:
@@ -130,14 +143,18 @@ def transform(v: typing.Union[Vector, Quaternion], data_path: str, transform: Ma
     return transform_func(v, transform)
 
 
-def transform_location(location: Vector, transform: Matrix = Matrix.Identity(4)) -> Vector:
+def transform_location(
+    location: Vector, transform: Matrix = Matrix.Identity(4)
+) -> Vector:
     """Transform location."""
     m = Matrix.Translation(location)
     m = transform @ m
     return m.to_translation()
 
 
-def transform_rotation(rotation: Quaternion, transform: Matrix = Matrix.Identity(4)) -> Quaternion:
+def transform_rotation(
+    rotation: Quaternion, transform: Matrix = Matrix.Identity(4)
+) -> Quaternion:
     """Transform rotation."""
     rotation.normalize()
     m = rotation.to_matrix().to_4x4()
@@ -191,20 +208,20 @@ def nearby_signed_perm_matrix(rot):
     a, b, c = abs(x[0]), abs(x[1]), abs(x[2])
     i = 0 if a >= b and a >= c else 1 if b >= c else 2
     x[i] = 1 if x[i] > 0 else -1
-    x[(i+1) % 3] = 0
-    x[(i+2) % 3] = 0
+    x[(i + 1) % 3] = 0
+    x[(i + 2) % 3] = 0
 
     # Same for second row: only two columns to consider now.
-    a, b = abs(y[(i+1) % 3]), abs(y[(i+2) % 3])
-    j = (i+1) % 3 if a >= b else (i+2) % 3
+    a, b = abs(y[(i + 1) % 3]), abs(y[(i + 2) % 3])
+    j = (i + 1) % 3 if a >= b else (i + 2) % 3
     y[j] = 1 if y[j] > 0 else -1
-    y[(j+1) % 3] = 0
-    y[(j+2) % 3] = 0
+    y[(j + 1) % 3] = 0
+    y[(j + 2) % 3] = 0
 
     # Same for third row: only one column left
     k = (0 + 1 + 2) - i - j
     z[k] = 1 if z[k] > 0 else -1
-    z[(k+1) % 3] = 0
-    z[(k+2) % 3] = 0
+    z[(k + 1) % 3] = 0
+    z[(k + 2) % 3] = 0
 
     return m

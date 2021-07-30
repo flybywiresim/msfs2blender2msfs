@@ -20,8 +20,9 @@ from .gltf2_blender_animation_utils import make_fcurve
 from .gltf2_blender_vnode import VNode
 
 
-class BlenderNodeAnim():
+class BlenderNodeAnim:
     """Blender Object Animation."""
+
     def __new__(cls, *args, **kwargs):
         raise RuntimeError("%s should not be instantiated" % cls)
 
@@ -35,7 +36,7 @@ class BlenderNodeAnim():
 
         for channel_idx in node.animations[anim_idx]:
             channel = animation.channels[channel_idx]
-            if channel.target.path not in ['translation', 'rotation', 'scale']:
+            if channel.target.path not in ["translation", "rotation", "scale"]:
                 continue
 
             BlenderNodeAnim.do_channel(gltf, anim_idx, node_idx, channel)
@@ -46,10 +47,16 @@ class BlenderNodeAnim():
         vnode = gltf.vnodes[node_idx]
         path = channel.target.path
 
-        action = BlenderNodeAnim.get_or_create_action(gltf, node_idx, animation.track_name)
+        action = BlenderNodeAnim.get_or_create_action(
+            gltf, node_idx, animation.track_name
+        )
 
-        keys = BinaryData.get_data_from_accessor(gltf, animation.samplers[channel.sampler].input)
-        values = BinaryData.get_data_from_accessor(gltf, animation.samplers[channel.sampler].output)
+        keys = BinaryData.get_data_from_accessor(
+            gltf, animation.samplers[channel.sampler].input
+        )
+        values = BinaryData.get_data_from_accessor(
+            gltf, animation.samplers[channel.sampler].output
+        )
 
         if animation.samplers[channel.sampler].interpolation == "CUBICSPLINE":
             # TODO manage tangent?
@@ -81,7 +88,10 @@ class BlenderNodeAnim():
         # Objects parented to a bone are translated to the bone tip by default.
         # Correct for this by translating backwards from the tip to the root.
         if vnode.type == VNode.Object and path == "translation":
-            if vnode.parent is not None and gltf.vnodes[vnode.parent].type == VNode.Bone:
+            if (
+                vnode.parent is not None
+                and gltf.vnodes[vnode.parent].type == VNode.Bone
+            ):
                 bone_length = gltf.vnodes[vnode.parent].bone_length
                 off = Vector((0, -bone_length, 0))
                 values = [vals + off for vals in values]
@@ -91,7 +101,7 @@ class BlenderNodeAnim():
             group_name = vnode.blender_bone_name
             blender_path = 'pose.bones["%s"].%s' % (
                 bpy.utils.escape_identifier(vnode.blender_bone_name),
-                blender_path
+                blender_path,
             )
 
             # We have the final TRS of the bone in values. We need to give
@@ -110,30 +120,24 @@ class BlenderNodeAnim():
             #     pr = er^{-1} fr
             #     ps = fs
 
-            if path == 'translation':
+            if path == "translation":
                 edit_trans, edit_rot = vnode.editbone_trans, vnode.editbone_rot
                 edit_rot_inv = edit_rot.conjugated()
-                values = [
-                    edit_rot_inv @ (trans - edit_trans)
-                    for trans in values
-                ]
+                values = [edit_rot_inv @ (trans - edit_trans) for trans in values]
 
-            elif path == 'rotation':
+            elif path == "rotation":
                 edit_rot = vnode.editbone_rot
                 edit_rot_inv = edit_rot.conjugated()
-                values = [
-                    edit_rot_inv @ rot
-                    for rot in values
-                ]
+                values = [edit_rot_inv @ rot for rot in values]
 
-            elif path == 'scale':
+            elif path == "scale":
                 pass  # no change needed
 
         # To ensure rotations always take the shortest path, we flip
         # adjacent antipodal quaternions.
-        if path == 'rotation':
+        if path == "rotation":
             for i in range(1, len(values)):
-                if values[i].dot(values[i-1]) < 0:
+                if values[i].dot(values[i - 1]) < 0:
                     values[i] = -values[i]
 
         fps = bpy.context.scene.render.fps
@@ -166,7 +170,7 @@ class BlenderNodeAnim():
         if not action:
             name = anim_name + "_" + obj.name
             action = bpy.data.actions.new(name)
-            action.id_root = 'OBJECT'
+            action.id_root = "OBJECT"
             gltf.needs_stash.append((obj, action))
             gltf.action_cache[obj.name] = action
 

@@ -21,10 +21,7 @@ class BlenderJSONEncoder(json.JSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, bpy.types.ID):
-            return dict(
-                name=obj.name,
-                type=obj.__class__.__name__
-            )
+            return dict(name=obj.name, type=obj.__class__.__name__)
         return super(BlenderJSONEncoder, self).default(obj)
 
 

@@ -31,24 +31,34 @@ from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_exte
 from io_scene_gltf2_msfs.io.com.gltf2_io_debug import print_console
 
 
-def gather_node(blender_object, library, blender_scene, dupli_object_parent, export_settings):
+def gather_node(
+    blender_object, library, blender_scene, dupli_object_parent, export_settings
+):
     # custom cache to avoid cache miss when called from animation
     # with blender_scene=None
 
     # invalidate cache if export settings have changed
-    if not hasattr(gather_node, "__export_settings") or export_settings != gather_node.__export_settings:
+    if (
+        not hasattr(gather_node, "__export_settings")
+        or export_settings != gather_node.__export_settings
+    ):
         gather_node.__cache = {}
         gather_node.__export_settings = export_settings
 
     if blender_scene is None and (blender_object.name, library) in gather_node.__cache:
         return gather_node.__cache[(blender_object.name, library)]
 
-    node = __gather_node(blender_object, library, blender_scene, dupli_object_parent, export_settings)
+    node = __gather_node(
+        blender_object, library, blender_scene, dupli_object_parent, export_settings
+    )
     gather_node.__cache[(blender_object.name, library)] = node
     return node
 
+
 @cached
-def __gather_node(blender_object, library, blender_scene, dupli_object_parent, export_settings):
+def __gather_node(
+    blender_object, library, blender_scene, dupli_object_parent, export_settings
+):
     children = __gather_children(blender_object, blender_scene, export_settings)
 
     camera = None
@@ -87,27 +97,38 @@ def __gather_node(blender_object, library, blender_scene, dupli_object_parent, e
         scale=None,
         skin=skin,
         translation=None,
-        weights=weights
+        weights=weights,
     )
 
     # If node mesh is skined, transforms should be ignored at import, so no need to set them here
     if node.skin is None:
-        node.translation, node.rotation, node.scale = __gather_trans_rot_scale(blender_object, export_settings)
+        node.translation, node.rotation, node.scale = __gather_trans_rot_scale(
+            blender_object, export_settings
+        )
 
     if export_settings[gltf2_blender_export_keys.YUP]:
         # Checking node.extensions is making sure that the type of lamp is managed, and will be exported
-        if blender_object.type == 'LIGHT' and export_settings[gltf2_blender_export_keys.LIGHTS] and node.extensions:
+        if (
+            blender_object.type == "LIGHT"
+            and export_settings[gltf2_blender_export_keys.LIGHTS]
+            and node.extensions
+        ):
             correction_node = __get_correction_node(blender_object, export_settings)
-            correction_node.extensions = {"KHR_lights_punctual": node.extensions["KHR_lights_punctual"]}
+            correction_node.extensions = {
+                "KHR_lights_punctual": node.extensions["KHR_lights_punctual"]
+            }
             del node.extensions["KHR_lights_punctual"]
             node.children.append(correction_node)
-        if blender_object.type == 'CAMERA' and export_settings[gltf2_blender_export_keys.CAMERAS]:
+        if (
+            blender_object.type == "CAMERA"
+            and export_settings[gltf2_blender_export_keys.CAMERAS]
+        ):
             correction_node = __get_correction_node(blender_object, export_settings)
             correction_node.camera = node.camera
             node.children.append(correction_node)
         node.camera = None
 
-    export_user_extensions('gather_node_hook', export_settings, node, blender_object)
+    export_user_extensions("gather_node_hook", export_settings, node, blender_object)
 
     return node
 
@@ -116,15 +137,29 @@ def __filter_node(blender_object, blender_scene, export_settings):
     if blender_object.users == 0:
         return False
     if blender_scene is not None:
-        instanced =  any([blender_object.name in layer.objects for layer in blender_scene.view_layers])
+        instanced = any(
+            [
+                blender_object.name in layer.objects
+                for layer in blender_scene.view_layers
+            ]
+        )
         if instanced is False:
             # Check if object is from a linked collection
-            if any([blender_object.name in coll.objects for coll in bpy.data.collections if coll.library is not None]):
+            if any(
+                [
+                    blender_object.name in coll.objects
+                    for coll in bpy.data.collections
+                    if coll.library is not None
+                ]
+            ):
                 pass
             else:
                 # Not instanced, not linked -> We don't keep this object
                 return False
-    if export_settings[gltf2_blender_export_keys.SELECTED] and blender_object.select_get() is False:
+    if (
+        export_settings[gltf2_blender_export_keys.SELECTED]
+        and blender_object.select_get() is False
+    ):
         return False
 
     if export_settings[gltf2_blender_export_keys.VISIBLE] and blender_object.visible_get() is False:
@@ -144,10 +179,12 @@ def __filter_node(blender_object, blender_scene, export_settings):
 
 
 def __gather_camera(blender_object, export_settings):
-    if blender_object.type != 'CAMERA':
+    if blender_object.type != "CAMERA":
         return None
 
-    return gltf2_blender_gather_cameras.gather_camera(blender_object.data, export_settings)
+    return gltf2_blender_gather_cameras.gather_camera(
+        blender_object.data, export_settings
+    )
 
 
 def __gather_children(blender_object, blender_scene, export_settings):
@@ -162,21 +199,32 @@ def __gather_children(blender_object, blender_scene, export_settings):
 
         child_object = _child_object.proxy if _child_object.proxy else _child_object
 
-        node = gather_node(child_object,
+        node = gather_node(
+            child_object,
             child_object.library.name if child_object.library else None,
-            blender_scene, None, export_settings)
+            blender_scene,
+            None,
+            export_settings,
+        )
         if node is not None:
             children.append(node)
     # blender dupli objects
-    if blender_object.instance_type == 'COLLECTION' and blender_object.instance_collection:
+    if (
+        blender_object.instance_type == "COLLECTION"
+        and blender_object.instance_collection
+    ):
         for dupli_object in blender_object.instance_collection.objects:
             if dupli_object.parent is not None:
                 continue
             if dupli_object.type == "ARMATURE":
-                continue # There is probably a proxy
-            node = gather_node(dupli_object,
+                continue  # There is probably a proxy
+            node = gather_node(
+                dupli_object,
                 dupli_object.library.name if dupli_object.library else None,
-                blender_scene, blender_object.name, export_settings)
+                blender_scene,
+                blender_object.name,
+                export_settings,
+            )
             if node is not None:
                 children.append(node)
 
@@ -190,11 +238,16 @@ def __gather_children(blender_object, blender_scene, export_settings):
             bones = [blender_object.pose.bones[b.name] for b in bones]
         for blender_bone in bones:
             if not blender_bone.parent:
-                joint = gltf2_blender_gather_joints.gather_joint(blender_object, blender_bone, export_settings)
+                joint = gltf2_blender_gather_joints.gather_joint(
+                    blender_object, blender_bone, export_settings
+                )
                 children.append(joint)
                 root_joints.append(joint)
         # handle objects directly parented to bones
-        direct_bone_children = [child for child in blender_object.children if child.parent_bone]
+        direct_bone_children = [
+            child for child in blender_object.children if child.parent_bone
+        ]
+
         def find_parent_joint(joints, name):
             for joint in joints:
                 if joint.name == name:
@@ -203,6 +256,7 @@ def __gather_children(blender_object, blender_scene, export_settings):
                 if parent_joint:
                     return parent_joint
             return None
+
         for child in direct_bone_children:
             # find parent joint
             parent_joint = find_parent_joint(root_joints, child.parent_bone)
@@ -220,12 +274,23 @@ def __gather_children(blender_object, blender_scene, export_settings):
 
                 rot_quat = Quaternion(rot)
                 axis_basis_change = Matrix(
-                    ((1.0, 0.0, 0.0, 0.0), (0.0, 0.0, -1.0, 0.0), (0.0, 1.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)))
+                    (
+                        (1.0, 0.0, 0.0, 0.0),
+                        (0.0, 0.0, -1.0, 0.0),
+                        (0.0, 1.0, 0.0, 0.0),
+                        (0.0, 0.0, 0.0, 1.0),
+                    )
+                )
                 mat = child.matrix_parent_inverse @ child.matrix_basis
                 mat = mat @ axis_basis_change
 
                 _, rot_quat, _ = mat.decompose()
-                child_node.rotation = [rot_quat[1], rot_quat[2], rot_quat[3], rot_quat[0]]
+                child_node.rotation = [
+                    rot_quat[1],
+                    rot_quat[2],
+                    rot_quat[3],
+                    rot_quat[0],
+                ]
 
             # fix translation (in blender bone's tail is the origin for children)
             trans, _, _ = child.matrix_local.decompose()
@@ -233,9 +298,13 @@ def __gather_children(blender_object, blender_scene, export_settings):
                 trans = [0, 0, 0]
             # bones go down their local y axis
             if blender_bone.matrix.to_scale()[1] >= 1e-6:
-                bone_tail = [0, blender_bone.length / blender_bone.matrix.to_scale()[1], 0]
+                bone_tail = [
+                    0,
+                    blender_bone.length / blender_bone.matrix.to_scale()[1],
+                    0,
+                ]
             else:
-                bone_tail = [0,0,0] # If scale is 0, tail == head
+                bone_tail = [0, 0, 0]  # If scale is 0, tail == head
             child_node.translation = [trans[idx] + bone_tail[idx] for idx in range(3)]
 
             parent_joint.children.append(child_node)
@@ -246,30 +315,26 @@ def __gather_children(blender_object, blender_scene, export_settings):
 def __gather_extensions(blender_object, export_settings):
     extensions = {}
 
-    if export_settings["gltf_lights"] and (blender_object.type == "LAMP" or blender_object.type == "LIGHT"):
+    if export_settings["gltf_lights"] and (
+        blender_object.type == "LAMP" or blender_object.type == "LIGHT"
+    ):
         blender_lamp = blender_object.data
         light = gltf2_blender_gather_lights.gather_lights_punctual(
-            blender_lamp,
-            export_settings
+            blender_lamp, export_settings
         )
         if light is not None:
             light_extension = gltf2_io_extensions.ChildOfRootExtension(
-                name="KHR_lights_punctual",
-                path=["lights"],
-                extension=light
+                name="KHR_lights_punctual", path=["lights"], extension=light
             )
             extensions["KHR_lights_punctual"] = gltf2_io_extensions.Extension(
-                name="KHR_lights_punctual",
-                extension={
-                    "light": light_extension
-                }
+                name="KHR_lights_punctual", extension={"light": light_extension}
             )
 
     return extensions if extensions else None
 
 
 def __gather_extras(blender_object, export_settings):
-    if export_settings['gltf_extras']:
+    if export_settings["gltf_extras"]:
         return generate_extras(blender_object)
     return None
 
@@ -280,7 +345,7 @@ def __gather_matrix(blender_object, export_settings):
 
 
 def __gather_mesh(blender_object, library, export_settings):
-    if blender_object.type in ['CURVE', 'SURFACE', 'FONT']:
+    if blender_object.type in ["CURVE", "SURFACE", "FONT"]:
         return __gather_mesh_from_nonmesh(blender_object, library, export_settings)
 
     if blender_object.type != "MESH":
@@ -299,13 +364,15 @@ def __gather_mesh(blender_object, library, export_settings):
         if export_settings[gltf2_blender_export_keys.SKINS]:
             # temporarily disable Armature modifiers if exporting skins
             for idx, modifier in enumerate(blender_object.modifiers):
-                if modifier.type == 'ARMATURE':
+                if modifier.type == "ARMATURE":
                     armature_modifiers[idx] = modifier.show_viewport
                     modifier.show_viewport = False
 
         depsgraph = bpy.context.evaluated_depsgraph_get()
         blender_mesh_owner = blender_object.evaluated_get(depsgraph)
-        blender_mesh = blender_mesh_owner.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
+        blender_mesh = blender_mesh_owner.to_mesh(
+            preserve_all_data_layers=True, depsgraph=depsgraph
+        )
         for prop in blender_object.data.keys():
             blender_mesh[prop] = blender_object.data[prop]
         skip_filter = True
@@ -323,8 +390,11 @@ def __gather_mesh(blender_object, library, export_settings):
             modifiers = None
         else:
             # Check if there is an armature modidier
-            if len([mod for mod in blender_object.modifiers if mod.type == "ARMATURE"]) == 0:
-                vertex_groups = None # Not needed if no armature, avoid a cache miss
+            if (
+                len([mod for mod in blender_object.modifiers if mod.type == "ARMATURE"])
+                == 0
+            ):
+                vertex_groups = None  # Not needed if no armature, avoid a cache miss
                 modifiers = None
 
     materials = tuple(ms.material for ms in blender_object.material_slots)
@@ -336,17 +406,19 @@ def __gather_mesh(blender_object, library, export_settings):
     blender_object_for_skined_data = None
     if export_settings[gltf2_blender_export_keys.SKINS]:
         for idx, modifier in enumerate(blender_object.modifiers):
-            if modifier.type == 'ARMATURE':
+            if modifier.type == "ARMATURE":
                 blender_object_for_skined_data = blender_object
 
-    result = gltf2_blender_gather_mesh.gather_mesh(blender_mesh,
-                                                   library,
-                                                   blender_object_for_skined_data,
-                                                   vertex_groups,
-                                                   modifiers,
-                                                   skip_filter,
-                                                   material_names,
-                                                   export_settings)
+    result = gltf2_blender_gather_mesh.gather_mesh(
+        blender_mesh,
+        library,
+        blender_object_for_skined_data,
+        vertex_groups,
+        modifiers,
+        skip_filter,
+        material_names,
+        export_settings,
+    )
 
     if export_settings[gltf2_blender_export_keys.APPLY]:
         blender_mesh_owner.to_mesh_clear()
@@ -363,7 +435,9 @@ def __gather_mesh_from_nonmesh(blender_object, library, export_settings):
             if export_settings[gltf2_blender_export_keys.APPLY]:
                 depsgraph = bpy.context.evaluated_depsgraph_get()
                 blender_mesh_owner = blender_object.evaluated_get(depsgraph)
-                blender_mesh = blender_mesh_owner.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
+                blender_mesh = blender_mesh_owner.to_mesh(
+                    preserve_all_data_layers=True, depsgraph=depsgraph
+                )
                 # TODO: do we need preserve_all_data_layers?
 
             else:
@@ -380,19 +454,27 @@ def __gather_mesh_from_nonmesh(blender_object, library, export_settings):
         needs_to_mesh_clear = True
 
         skip_filter = True
-        material_names = tuple([ms.material.name for ms in blender_object.material_slots if ms.material is not None])
+        material_names = tuple(
+            [
+                ms.material.name
+                for ms in blender_object.material_slots
+                if ms.material is not None
+            ]
+        )
         vertex_groups = None
         modifiers = None
         blender_object_for_skined_data = None
 
-        result = gltf2_blender_gather_mesh.gather_mesh(blender_mesh,
-                                                       library,
-                                                       blender_object_for_skined_data,
-                                                       vertex_groups,
-                                                       modifiers,
-                                                       skip_filter,
-                                                       material_names,
-                                                       export_settings)
+        result = gltf2_blender_gather_mesh.gather_mesh(
+            blender_mesh,
+            library,
+            blender_object_for_skined_data,
+            vertex_groups,
+            modifiers,
+            skip_filter,
+            material_names,
+            export_settings,
+        )
 
     finally:
         if needs_to_mesh_clear:
@@ -409,7 +491,7 @@ def __gather_trans_rot_scale(blender_object, export_settings):
     if blender_object.matrix_parent_inverse == Matrix.Identity(4):
         trans = blender_object.location
 
-        if blender_object.rotation_mode in ['QUATERNION', 'AXIS_ANGLE']:
+        if blender_object.rotation_mode in ["QUATERNION", "AXIS_ANGLE"]:
             rot = blender_object.rotation_quaternion
         else:
             rot = blender_object.rotation_euler.to_quaternion()
@@ -419,14 +501,16 @@ def __gather_trans_rot_scale(blender_object, export_settings):
         # matrix_local = matrix_parent_inverse*location*rotation*scale
         # Decomposing matrix_local gives less accuracy, but is needed if matrix_parent_inverse is not the identity.
 
-
         if blender_object.matrix_local[3][3] != 0.0:
             trans, rot, sca = blender_object.matrix_local.decompose()
         else:
             # Some really weird cases, scale is null (if parent is null when evaluation is done)
-            print_console('WARNING', 'Some nodes are 0 scaled during evaluation. Result can be wrong')
+            print_console(
+                "WARNING",
+                "Some nodes are 0 scaled during evaluation. Result can be wrong",
+            )
             trans = blender_object.location
-            if blender_object.rotation_mode in ['QUATERNION', 'AXIS_ANGLE']:
+            if blender_object.rotation_mode in ["QUATERNION", "AXIS_ANGLE"]:
                 rot = blender_object.rotation_quaternion
             else:
                 rot = blender_object.rotation_euler.to_quaternion()
@@ -439,9 +523,13 @@ def __gather_trans_rot_scale(blender_object, export_settings):
     rot = __convert_swizzle_rotation(rot, export_settings)
     sca = __convert_swizzle_scale(sca, export_settings)
 
-    if blender_object.instance_type == 'COLLECTION' and blender_object.instance_collection:
+    if (
+        blender_object.instance_type == "COLLECTION"
+        and blender_object.instance_collection
+    ):
         offset = -__convert_swizzle_location(
-            blender_object.instance_collection.instance_offset, export_settings)
+            blender_object.instance_collection.instance_offset, export_settings
+        )
 
         s = Matrix.Diagonal(sca).to_4x4()
         r = rot.to_matrix().to_4x4()
@@ -452,12 +540,22 @@ def __gather_trans_rot_scale(blender_object, export_settings):
         trans = m.translation
 
     translation, rotation, scale = (None, None, None)
-    trans[0], trans[1], trans[2] = gltf2_blender_math.round_if_near(trans[0], 0.0), gltf2_blender_math.round_if_near(trans[1], 0.0), \
-                                   gltf2_blender_math.round_if_near(trans[2], 0.0)
-    rot[0], rot[1], rot[2], rot[3] = gltf2_blender_math.round_if_near(rot[0], 1.0), gltf2_blender_math.round_if_near(rot[1], 0.0), \
-                                     gltf2_blender_math.round_if_near(rot[2], 0.0), gltf2_blender_math.round_if_near(rot[3], 0.0)
-    sca[0], sca[1], sca[2] = gltf2_blender_math.round_if_near(sca[0], 1.0), gltf2_blender_math.round_if_near(sca[1], 1.0), \
-                             gltf2_blender_math.round_if_near(sca[2], 1.0)
+    trans[0], trans[1], trans[2] = (
+        gltf2_blender_math.round_if_near(trans[0], 0.0),
+        gltf2_blender_math.round_if_near(trans[1], 0.0),
+        gltf2_blender_math.round_if_near(trans[2], 0.0),
+    )
+    rot[0], rot[1], rot[2], rot[3] = (
+        gltf2_blender_math.round_if_near(rot[0], 1.0),
+        gltf2_blender_math.round_if_near(rot[1], 0.0),
+        gltf2_blender_math.round_if_near(rot[2], 0.0),
+        gltf2_blender_math.round_if_near(rot[3], 0.0),
+    )
+    sca[0], sca[1], sca[2] = (
+        gltf2_blender_math.round_if_near(sca[0], 1.0),
+        gltf2_blender_math.round_if_near(sca[1], 1.0),
+        gltf2_blender_math.round_if_near(sca[2], 1.0),
+    )
     if trans[0] != 0.0 or trans[1] != 0.0 or trans[2] != 0.0:
         translation = [trans[0], trans[1], trans[2]]
     if rot[0] != 1.0 or rot[1] != 0.0 or rot[2] != 0.0 or rot[3] != 0.0:
@@ -480,21 +578,30 @@ def __gather_skin(blender_object, export_settings):
     # check if any vertices in the mesh are part of a vertex group
     depsgraph = bpy.context.evaluated_depsgraph_get()
     blender_mesh_owner = blender_object.evaluated_get(depsgraph)
-    blender_mesh = blender_mesh_owner.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
-    if not any(vertex.groups is not None and len(vertex.groups) > 0 for vertex in blender_mesh.vertices):
+    blender_mesh = blender_mesh_owner.to_mesh(
+        preserve_all_data_layers=True, depsgraph=depsgraph
+    )
+    if not any(
+        vertex.groups is not None and len(vertex.groups) > 0
+        for vertex in blender_mesh.vertices
+    ):
         return None
 
     # Prevent infinite recursive error. A mesh can't have an Armature modifier
     # and be bone parented to a bone of this armature
     # In that case, ignore the armature modifier, keep only the bone parenting
-    if blender_object.parent is not None \
-    and blender_object.parent_type == 'BONE' \
-    and blender_object.parent.name == modifiers["ARMATURE"].object.name:
+    if (
+        blender_object.parent is not None
+        and blender_object.parent_type == "BONE"
+        and blender_object.parent.name == modifiers["ARMATURE"].object.name
+    ):
 
         return None
 
     # Skins and meshes must be in the same glTF node, which is different from how blender handles armatures
-    return gltf2_blender_gather_skins.gather_skin(modifiers["ARMATURE"].object, export_settings)
+    return gltf2_blender_gather_skins.gather_skin(
+        modifiers["ARMATURE"].object, export_settings
+    )
 
 
 def __gather_weights(blender_object, export_settings):
@@ -503,9 +610,14 @@ def __gather_weights(blender_object, export_settings):
 
 def __get_correction_node(blender_object, export_settings):
     correction_quaternion = __convert_swizzle_rotation(
-        Quaternion((1.0, 0.0, 0.0), math.radians(-90.0)), export_settings)
-    correction_quaternion = [correction_quaternion[1], correction_quaternion[2],
-                             correction_quaternion[3], correction_quaternion[0]]
+        Quaternion((1.0, 0.0, 0.0), math.radians(-90.0)), export_settings
+    )
+    correction_quaternion = [
+        correction_quaternion[1],
+        correction_quaternion[2],
+        correction_quaternion[3],
+        correction_quaternion[0],
+    ]
     return gltf2_io.Node(
         camera=None,
         children=[],
@@ -513,12 +625,12 @@ def __get_correction_node(blender_object, export_settings):
         extras=None,
         matrix=None,
         mesh=None,
-        name=blender_object.name + '_Orientation',
+        name=blender_object.name + "_Orientation",
         rotation=correction_quaternion,
         scale=None,
         skin=None,
         translation=None,
-        weights=None
+        weights=None,
     )
 
 

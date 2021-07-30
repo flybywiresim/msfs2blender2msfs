@@ -42,11 +42,12 @@ class GlTF2Exporter:
             copyright=copyright,
             extensions=None,
             extras=None,
-            generator='Khronos glTF Blender I/O v' + get_version_string(),
+            generator="Khronos glTF Blender I/O v" + get_version_string(),
             min_version=None,
-            version='2.0')
+            version="2.0",
+        )
 
-        export_user_extensions('gather_asset_hook', export_settings, asset)
+        export_user_extensions("gather_asset_hook", export_settings, asset)
 
         self.__gltf = gltf2_io.Gltf(
             accessors=[],
@@ -67,7 +68,7 @@ class GlTF2Exporter:
             scene=-1,
             scenes=[],
             skins=[],
-            textures=[]
+            textures=[],
         )
 
         self.__buffer = gltf2_io_buffer.Buffer()
@@ -87,7 +88,7 @@ class GlTF2Exporter:
             gltf2_io.Sampler: self.__gltf.samplers,
             gltf2_io.Scene: self.__gltf.scenes,
             gltf2_io.Skin: self.__gltf.skins,
-            gltf2_io.Texture: self.__gltf.textures
+            gltf2_io.Texture: self.__gltf.textures,
         }
 
         self.__propertyTypeLookup = [
@@ -104,7 +105,7 @@ class GlTF2Exporter:
             gltf2_io.TextureInfo,
             gltf2_io.MaterialPBRMetallicRoughness,
             gltf2_io.MaterialNormalTextureInfoClass,
-            gltf2_io.MaterialOcclusionTextureInfoClass
+            gltf2_io.MaterialOcclusionTextureInfoClass,
         ]
 
         self.__traverse(asset)
@@ -115,7 +116,9 @@ class GlTF2Exporter:
             raise RuntimeError("glTF requested, but buffers are not finalized yet")
         return self.__gltf
 
-    def add_asobo_buffer_views(self, buffer_views): # This assumes there are no buffer views already in the glTF
+    def add_asobo_buffer_views(
+        self, buffer_views
+    ):  # This assumes there are no buffer views already in the glTF
         for asobo_buffer_view in buffer_views:
             # Add the buffer view to the glTF buffer views
             self.__gltf.buffer_views.append(asobo_buffer_view)
@@ -134,7 +137,7 @@ class GlTF2Exporter:
             if is_glb:
                 uri = None
             elif output_path and buffer_name:
-                with open(output_path + buffer_name, 'wb') as f:
+                with open(output_path + buffer_name, "wb") as f:
                     f.write(self.__buffer.to_bytes())
                 uri = buffer_name
             else:
@@ -145,7 +148,7 @@ class GlTF2Exporter:
                 extensions=None,
                 extras=None,
                 name=None,
-                uri=uri
+                uri=uri,
             )
             self.__gltf.buffers.append(buffer)
 
@@ -160,8 +163,8 @@ class GlTF2Exporter:
 
         :return:
         """
-        self.__gltf.extensions_required.append('KHR_draco_mesh_compression')
-        self.__gltf.extensions_used.append('KHR_draco_mesh_compression')
+        self.__gltf.extensions_required.append("KHR_draco_mesh_compression")
+        self.__gltf.extensions_used.append("KHR_draco_mesh_compression")
 
     def finalize_images(self):
         """
@@ -174,7 +177,7 @@ class GlTF2Exporter:
 
         for name, image in self.__images.items():
             dst_path = output_path + "/" + name + image.file_extension
-            with open(dst_path, 'wb') as f:
+            with open(dst_path, "wb") as f:
                 f.write(image.data)
 
     def add_scene(self, scene: gltf2_io.Scene, active: bool = False):
@@ -215,7 +218,9 @@ class GlTF2Exporter:
         :return: nothing
         """
         if self.__finalized:
-            raise RuntimeError("Tried to add Asobo asset extensions to finalized glTF file")
+            raise RuntimeError(
+                "Tried to add Asobo asset extensions to finalized glTF file"
+            )
 
         for key, value in extensions.items():
             self.__gltf.asset.extensions[key] = value
@@ -305,7 +310,6 @@ class GlTF2Exporter:
         d[key] = d_key
         return cls.__get_key_path(d[key], keypath, default)
 
-
     def traverse_extensions(self):
         self.__traverse(self.__gltf.extensions)
 
@@ -316,10 +320,17 @@ class GlTF2Exporter:
         The tree is traversed downwards until a primitive is reached. Then any ChildOfRoot property
         is stored in the according list in the glTF and replaced with a index reference in the upper level.
         """
+
         def __traverse_property(node):
-            for member_name in [a for a in dir(node) if not a.startswith('__') and not callable(getattr(node, a))]:
+            for member_name in [
+                a
+                for a in dir(node)
+                if not a.startswith("__") and not callable(getattr(node, a))
+            ]:
                 new_value = self.__traverse(getattr(node, member_name))
-                setattr(node, member_name, new_value)  # usually this is the same as before
+                setattr(
+                    node, member_name, new_value
+                )  # usually this is the same as before
 
                 # # TODO: maybe with extensions hooks we can find a more elegant solution
                 # if member_name == "extensions" and new_value is not None:
@@ -365,12 +376,16 @@ class GlTF2Exporter:
             extension = self.__traverse(node.extension)
             self.__append_unique_and_get_index(self.__gltf.extensions_used, node.name)
             if node.required:
-                self.__append_unique_and_get_index(self.__gltf.extensions_required, node.name)
+                self.__append_unique_and_get_index(
+                    self.__gltf.extensions_required, node.name
+                )
 
             # extensions that lie in the root of the glTF.
             # They need to be converted to a reference at place of occurrence
             if isinstance(node, gltf2_io_extensions.ChildOfRootExtension):
-                root_extension_list = self.__get_key_path(self.__gltf.extensions, [node.name] + node.path, [])
+                root_extension_list = self.__get_key_path(
+                    self.__gltf.extensions, [node.name] + node.path, []
+                )
                 idx = self.__append_unique_and_get_index(root_extension_list, extension)
                 return idx
 
@@ -379,7 +394,8 @@ class GlTF2Exporter:
         # do nothing for any type that does not match a glTF schema (primitives)
         return node
 
+
 def _path_to_uri(path):
     path = os.path.normpath(path)
-    path = path.replace(os.sep, '/')
+    path = path.replace(os.sep, "/")
     return urllib.parse.quote(path)

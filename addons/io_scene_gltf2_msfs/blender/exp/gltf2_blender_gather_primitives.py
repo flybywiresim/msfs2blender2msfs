@@ -16,7 +16,13 @@ import bpy
 from typing import List, Optional, Tuple
 import numpy as np
 
-from .gltf2_blender_export_keys import NORMALS, MORPH_NORMAL, TANGENTS, MORPH_TANGENT, MORPH
+from .gltf2_blender_export_keys import (
+    NORMALS,
+    MORPH_NORMAL,
+    TANGENTS,
+    MORPH_TANGENT,
+    MORPH,
+)
 
 from io_scene_gltf2_msfs.blender.exp.gltf2_blender_gather_cache import cached
 from io_scene_gltf2_msfs.blender.exp import gltf2_blender_extract
@@ -32,14 +38,14 @@ from io_scene_gltf2_msfs.io.com.gltf2_io_debug import print_console
 
 @cached
 def gather_primitives(
-        blender_mesh: bpy.types.Mesh,
-        library: Optional[str],
-        blender_object: Optional[bpy.types.Object],
-        vertex_groups: Optional[bpy.types.VertexGroups],
-        modifiers: Optional[bpy.types.ObjectModifiers],
-        material_names: Tuple[str],
-        export_settings
-        ) -> List[gltf2_io.MeshPrimitive]:
+    blender_mesh: bpy.types.Mesh,
+    library: Optional[str],
+    blender_object: Optional[bpy.types.Object],
+    vertex_groups: Optional[bpy.types.VertexGroups],
+    modifiers: Optional[bpy.types.ObjectModifiers],
+    material_names: Tuple[str],
+    export_settings,
+) -> List[gltf2_io.MeshPrimitive]:
     """
     Extract the mesh primitives from a blender object
 
@@ -47,14 +53,15 @@ def gather_primitives(
     """
     primitives = []
 
-    blender_primitives = __gather_cache_primitives(blender_mesh, library, blender_object,
-        vertex_groups, modifiers, export_settings)
+    blender_primitives = __gather_cache_primitives(
+        blender_mesh, library, blender_object, vertex_groups, modifiers, export_settings
+    )
 
     for internal_primitive in blender_primitives:
-        material_idx = internal_primitive['material']
+        material_idx = internal_primitive["material"]
         material = None
 
-        if export_settings['gltf_materials'] == "EXPORT" and material_idx is not None:
+        if export_settings["gltf_materials"] == "EXPORT" and material_idx is not None:
             blender_material = None
             if material_names:
                 i = material_idx if material_idx < len(material_names) else -1
@@ -68,26 +75,29 @@ def gather_primitives(
                 )
 
         primitive = gltf2_io.MeshPrimitive(
-            attributes=internal_primitive['attributes'],
+            attributes=internal_primitive["attributes"],
             extensions=None,
-            extras=None if not export_settings['emulate_asobo_optimization'] else internal_primitive['extras'],
-            indices=internal_primitive['indices'],
+            extras=None
+            if not export_settings["emulate_asobo_optimization"]
+            else internal_primitive["extras"],
+            indices=internal_primitive["indices"],
             material=material,
-            mode=internal_primitive['mode'],
-            targets=internal_primitive['targets']
+            mode=internal_primitive["mode"],
+            targets=internal_primitive["targets"],
         )
         primitives.append(primitive)
 
     return primitives
 
+
 @cached
 def __gather_cache_primitives(
-        blender_mesh: bpy.types.Mesh,
-        library: Optional[str],
-        blender_object: Optional[bpy.types.Object],
-        vertex_groups: Optional[bpy.types.VertexGroups],
-        modifiers: Optional[bpy.types.ObjectModifiers],
-        export_settings
+    blender_mesh: bpy.types.Mesh,
+    library: Optional[str],
+    blender_object: Optional[bpy.types.Object],
+    vertex_groups: Optional[bpy.types.VertexGroups],
+    modifiers: Optional[bpy.types.ObjectModifiers],
+    export_settings,
 ) -> List[dict]:
     """
     Gather parts that are identical for instances, i.e. excluding materials
@@ -95,40 +105,64 @@ def __gather_cache_primitives(
     primitives = []
 
     blender_primitives = gltf2_blender_extract.extract_primitives(
-        None, blender_mesh, library, blender_object, vertex_groups, modifiers, export_settings)
+        None,
+        blender_mesh,
+        library,
+        blender_object,
+        vertex_groups,
+        modifiers,
+        export_settings,
+    )
 
     for internal_primitive in blender_primitives:
-        if export_settings['emulate_asobo_optimization']:
+        if export_settings["emulate_asobo_optimization"]:
             primitive = {
-                "attributes": __gather_attributes(internal_primitive, blender_mesh, modifiers, export_settings),
-                "indices": __gather_indices(internal_primitive, blender_mesh, modifiers, export_settings),
-                "mode": internal_primitive.get('mode'),
-                "material": internal_primitive.get('material'),
-                "targets": __gather_targets(internal_primitive, blender_mesh, modifiers, export_settings),
-                "extras": {
-                    "ASOBO_primitive": {}
-                }
+                "attributes": __gather_attributes(
+                    internal_primitive, blender_mesh, modifiers, export_settings
+                ),
+                "indices": __gather_indices(
+                    internal_primitive, blender_mesh, modifiers, export_settings
+                ),
+                "mode": internal_primitive.get("mode"),
+                "material": internal_primitive.get("material"),
+                "targets": __gather_targets(
+                    internal_primitive, blender_mesh, modifiers, export_settings
+                ),
+                "extras": {"ASOBO_primitive": {}},
             }
             # Set ASOBO_primitive data
-            primitive["extras"]["ASOBO_primitive"]["BaseVertexIndex"] = internal_primitive.get("BaseVertexIndex")
-            primitive["extras"]["ASOBO_primitive"]["PrimitiveCount"] = primitive.get("indices").count // 3
+            primitive["extras"]["ASOBO_primitive"][
+                "BaseVertexIndex"
+            ] = internal_primitive.get("BaseVertexIndex")
+            primitive["extras"]["ASOBO_primitive"]["PrimitiveCount"] = (
+                primitive.get("indices").count // 3
+            )
             primitive["extras"]["ASOBO_primitive"]["StartIndex"] = None
-            primitive["extras"]["ASOBO_primitive"]["VertexType"] = internal_primitive.get("VertexType")
+            primitive["extras"]["ASOBO_primitive"][
+                "VertexType"
+            ] = internal_primitive.get("VertexType")
             primitive["extras"]["ASOBO_primitive"]["VertexVersion"] = 2
         else:
             primitive = {
-                "attributes": __gather_attributes(internal_primitive, blender_mesh, modifiers, export_settings),
-                "indices": __gather_indices(internal_primitive, blender_mesh, modifiers, export_settings),
-                "mode": internal_primitive.get('mode'),
-                "material": internal_primitive.get('material'),
-                "targets": __gather_targets(internal_primitive, blender_mesh, modifiers, export_settings)
+                "attributes": __gather_attributes(
+                    internal_primitive, blender_mesh, modifiers, export_settings
+                ),
+                "indices": __gather_indices(
+                    internal_primitive, blender_mesh, modifiers, export_settings
+                ),
+                "mode": internal_primitive.get("mode"),
+                "material": internal_primitive.get("material"),
+                "targets": __gather_targets(
+                    internal_primitive, blender_mesh, modifiers, export_settings
+                ),
             }
         primitives.append(primitive)
 
     return primitives
 
+
 def __gather_indices(blender_primitive, blender_mesh, modifiers, export_settings):
-    indices = blender_primitive.get('indices')
+    indices = blender_primitive.get("indices")
     if indices is None:
         return None
 
@@ -146,11 +180,18 @@ def __gather_indices(blender_primitive, blender_mesh, modifiers, export_settings
         component_type = gltf2_io_constants.ComponentType.UnsignedInt
         indices = indices.astype(np.uint32, copy=False)
     else:
-        print_console('ERROR', 'A mesh contains too many vertices (' + str(max_index) + ') and needs to be split before export.')
+        print_console(
+            "ERROR",
+            "A mesh contains too many vertices ("
+            + str(max_index)
+            + ") and needs to be split before export.",
+        )
         return None
 
     element_type = gltf2_io_constants.DataType.Scalar
-    if export_settings['emulate_asobo_optimization']: # If we are emulating optimization, we don't want to gather the indices accessor. Instead, we skip that process entirely.
+    if export_settings[
+        "emulate_asobo_optimization"
+    ]:  # If we are emulating optimization, we don't want to gather the indices accessor. Instead, we skip that process entirely.
         return gltf2_io.Accessor(
             buffer_view=indices,
             byte_offset=None,
@@ -163,7 +204,7 @@ def __gather_indices(blender_primitive, blender_mesh, modifiers, export_settings
             name=None,
             normalized=None,
             sparse=None,
-            type=element_type
+            type=element_type,
         )
     else:
         binary_data = gltf2_io_binary_data.BinaryData(indices.tobytes())
@@ -174,16 +215,20 @@ def __gather_indices(blender_primitive, blender_mesh, modifiers, export_settings
             None,
             None,
             element_type,
-            export_settings
+            export_settings,
         )
 
 
 def __gather_attributes(blender_primitive, blender_mesh, modifiers, export_settings):
-    return gltf2_blender_gather_primitive_attributes.gather_primitive_attributes(blender_primitive, export_settings)
+    return gltf2_blender_gather_primitive_attributes.gather_primitive_attributes(
+        blender_primitive, export_settings
+    )
 
 
 def __gather_targets(blender_primitive, blender_mesh, modifiers, export_settings):
-    if export_settings[MORPH] and not export_settings['emulate_asobo_optimization']: # MSFS doesn't support morph targets
+    if (
+        export_settings[MORPH] and not export_settings["emulate_asobo_optimization"]
+    ):  # MSFS doesn't support morph targets
         targets = []
         if blender_mesh.shape_keys is not None:
             morph_index = 0
@@ -194,45 +239,75 @@ def __gather_targets(blender_primitive, blender_mesh, modifiers, export_settings
                 if blender_shape_key.mute is True:
                     continue
 
-                target_position_id = 'MORPH_POSITION_' + str(morph_index)
-                target_normal_id = 'MORPH_NORMAL_' + str(morph_index)
-                target_tangent_id = 'MORPH_TANGENT_' + str(morph_index)
+                target_position_id = "MORPH_POSITION_" + str(morph_index)
+                target_normal_id = "MORPH_NORMAL_" + str(morph_index)
+                target_tangent_id = "MORPH_TANGENT_" + str(morph_index)
 
                 if blender_primitive["attributes"].get(target_position_id) is not None:
                     target = {}
-                    internal_target_position = blender_primitive["attributes"][target_position_id]
-                    target["POSITION"] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
+                    internal_target_position = blender_primitive["attributes"][
+                        target_position_id
+                    ]
+                    target[
+                        "POSITION"
+                    ] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
                         internal_target_position,
                         component_type=gltf2_io_constants.ComponentType.Float,
                         data_type=gltf2_io_constants.DataType.Vec3,
                         include_max_and_min=True,
-                        create_buffer_view=False if export_settings['emulate_asobo_optimization'] else True,
-                        emulate_asobo_optimization=export_settings['emulate_asobo_optimization'],
+                        create_buffer_view=False
+                        if export_settings["emulate_asobo_optimization"]
+                        else True,
+                        emulate_asobo_optimization=export_settings[
+                            "emulate_asobo_optimization"
+                        ],
                     )
 
-                    if export_settings[NORMALS] \
-                            and export_settings[MORPH_NORMAL] \
-                            and blender_primitive["attributes"].get(target_normal_id) is not None:
+                    if (
+                        export_settings[NORMALS]
+                        and export_settings[MORPH_NORMAL]
+                        and blender_primitive["attributes"].get(target_normal_id)
+                        is not None
+                    ):
 
-                        internal_target_normal = blender_primitive["attributes"][target_normal_id]
-                        target['NORMAL'] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
+                        internal_target_normal = blender_primitive["attributes"][
+                            target_normal_id
+                        ]
+                        target[
+                            "NORMAL"
+                        ] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
                             internal_target_normal,
                             component_type=gltf2_io_constants.ComponentType.Float,
                             data_type=gltf2_io_constants.DataType.Vec3,
-                            create_buffer_view=False if export_settings['emulate_asobo_optimization'] else True,
-                            emulate_asobo_optimization=export_settings['emulate_asobo_optimization'],
+                            create_buffer_view=False
+                            if export_settings["emulate_asobo_optimization"]
+                            else True,
+                            emulate_asobo_optimization=export_settings[
+                                "emulate_asobo_optimization"
+                            ],
                         )
 
-                    if export_settings[TANGENTS] \
-                            and export_settings[MORPH_TANGENT] \
-                            and blender_primitive["attributes"].get(target_tangent_id) is not None:
-                        internal_target_tangent = blender_primitive["attributes"][target_tangent_id]
-                        target['TANGENT'] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
+                    if (
+                        export_settings[TANGENTS]
+                        and export_settings[MORPH_TANGENT]
+                        and blender_primitive["attributes"].get(target_tangent_id)
+                        is not None
+                    ):
+                        internal_target_tangent = blender_primitive["attributes"][
+                            target_tangent_id
+                        ]
+                        target[
+                            "TANGENT"
+                        ] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
                             internal_target_tangent,
                             component_type=gltf2_io_constants.ComponentType.Float,
                             data_type=gltf2_io_constants.DataType.Vec3,
-                            create_buffer_view=False if export_settings['emulate_asobo_optimization'] else True,
-                            emulate_asobo_optimization=export_settings['emulate_asobo_optimization'],
+                            create_buffer_view=False
+                            if export_settings["emulate_asobo_optimization"]
+                            else True,
+                            emulate_asobo_optimization=export_settings[
+                                "emulate_asobo_optimization"
+                            ],
                         )
                     targets.append(target)
                     morph_index += 1

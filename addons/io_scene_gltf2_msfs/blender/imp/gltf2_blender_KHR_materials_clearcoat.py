@@ -20,11 +20,11 @@ from .gltf2_blender_texture import texture
 def clearcoat(mh, location, clearcoat_socket):
     x, y = location
     try:
-        ext = mh.pymat.extensions['KHR_materials_clearcoat']
+        ext = mh.pymat.extensions["KHR_materials_clearcoat"]
     except Exception:
         return
-    clearcoat_factor = ext.get('clearcoatFactor', 0)
-    tex_info = ext.get('clearcoatTexture')
+    clearcoat_factor = ext.get("clearcoatFactor", 0)
+    tex_info = ext.get("clearcoatTexture")
     if tex_info is not None:
         tex_info = TextureInfo.from_dict(tex_info)
 
@@ -37,10 +37,10 @@ def clearcoat(mh, location, clearcoat_socket):
 
     # Mix clearcoat factor
     if clearcoat_factor != 1:
-        node = mh.node_tree.nodes.new('ShaderNodeMath')
-        node.label = 'Clearcoat Factor'
+        node = mh.node_tree.nodes.new("ShaderNodeMath")
+        node.label = "Clearcoat Factor"
         node.location = x - 140, y
-        node.operation = 'MULTIPLY'
+        node.operation = "MULTIPLY"
         # Outputs
         mh.node_tree.links.new(clearcoat_socket, node.outputs[0])
         # Inputs
@@ -50,10 +50,10 @@ def clearcoat(mh, location, clearcoat_socket):
         x -= 200
 
     # Separate RGB
-    node = mh.node_tree.nodes.new('ShaderNodeSeparateRGB')
+    node = mh.node_tree.nodes.new("ShaderNodeSeparateRGB")
     node.location = x - 150, y - 75
     # Outputs
-    mh.node_tree.links.new(clearcoat_socket, node.outputs['R'])
+    mh.node_tree.links.new(clearcoat_socket, node.outputs["R"])
     # Inputs
     clearcoat_socket = node.inputs[0]
 
@@ -62,7 +62,7 @@ def clearcoat(mh, location, clearcoat_socket):
     texture(
         mh,
         tex_info=tex_info,
-        label='CLEARCOAT',
+        label="CLEARCOAT",
         location=(x, y),
         is_data=True,
         color_socket=clearcoat_socket,
@@ -73,11 +73,11 @@ def clearcoat(mh, location, clearcoat_socket):
 def clearcoat_roughness(mh, location, roughness_socket):
     x, y = location
     try:
-        ext = mh.pymat.extensions['KHR_materials_clearcoat']
+        ext = mh.pymat.extensions["KHR_materials_clearcoat"]
     except Exception:
         return
-    roughness_factor = ext.get('clearcoatRoughnessFactor', 0)
-    tex_info = ext.get('clearcoatRoughnessTexture')
+    roughness_factor = ext.get("clearcoatRoughnessFactor", 0)
+    tex_info = ext.get("clearcoatRoughnessTexture")
     if tex_info is not None:
         tex_info = TextureInfo.from_dict(tex_info)
 
@@ -90,10 +90,10 @@ def clearcoat_roughness(mh, location, roughness_socket):
 
     # Mix roughness factor
     if roughness_factor != 1:
-        node = mh.node_tree.nodes.new('ShaderNodeMath')
-        node.label = 'Clearcoat Roughness Factor'
+        node = mh.node_tree.nodes.new("ShaderNodeMath")
+        node.label = "Clearcoat Roughness Factor"
         node.location = x - 140, y
-        node.operation = 'MULTIPLY'
+        node.operation = "MULTIPLY"
         # Outputs
         mh.node_tree.links.new(roughness_socket, node.outputs[0])
         # Inputs
@@ -103,10 +103,10 @@ def clearcoat_roughness(mh, location, roughness_socket):
         x -= 200
 
     # Separate RGB (roughness is in G)
-    node = mh.node_tree.nodes.new('ShaderNodeSeparateRGB')
+    node = mh.node_tree.nodes.new("ShaderNodeSeparateRGB")
     node.location = x - 150, y - 75
     # Outputs
-    mh.node_tree.links.new(roughness_socket, node.outputs['G'])
+    mh.node_tree.links.new(roughness_socket, node.outputs["G"])
     # Inputs
     color_socket = node.inputs[0]
 
@@ -115,7 +115,7 @@ def clearcoat_roughness(mh, location, roughness_socket):
     texture(
         mh,
         tex_info=tex_info,
-        label='CLEARCOAT ROUGHNESS',
+        label="CLEARCOAT ROUGHNESS",
         location=(x, y),
         is_data=True,
         color_socket=color_socket,
@@ -124,12 +124,12 @@ def clearcoat_roughness(mh, location, roughness_socket):
 
 # [Texture] => [Normal Map] =>
 def clearcoat_normal(mh, location, normal_socket):
-    x,y = location
+    x, y = location
     try:
-        ext = mh.pymat.extensions['KHR_materials_clearcoat']
+        ext = mh.pymat.extensions["KHR_materials_clearcoat"]
     except Exception:
         return
-    tex_info = ext.get('clearcoatNormalTexture')
+    tex_info = ext.get("clearcoatNormalTexture")
     if tex_info is not None:
         tex_info = MaterialNormalTextureInfoClass.from_dict(tex_info)
 
@@ -137,30 +137,30 @@ def clearcoat_normal(mh, location, normal_socket):
         return
 
     # Normal map
-    node = mh.node_tree.nodes.new('ShaderNodeNormalMap')
+    node = mh.node_tree.nodes.new("ShaderNodeNormalMap")
     node.location = x - 150, y - 40
     # Set UVMap
     uv_idx = tex_info.tex_coord or 0
     try:
-        uv_idx = tex_info.extensions['KHR_texture_transform']['texCoord']
+        uv_idx = tex_info.extensions["KHR_texture_transform"]["texCoord"]
     except Exception:
         pass
-    node.uv_map = 'UVMap' if uv_idx == 0 else 'UVMap.%03d' % uv_idx
+    node.uv_map = "UVMap" if uv_idx == 0 else "UVMap.%03d" % uv_idx
     # Set strength
     scale = tex_info.scale
     scale = scale if scale is not None else 1
-    node.inputs['Strength'].default_value = scale
+    node.inputs["Strength"].default_value = scale
     # Outputs
-    mh.node_tree.links.new(normal_socket, node.outputs['Normal'])
+    mh.node_tree.links.new(normal_socket, node.outputs["Normal"])
     # Inputs
-    color_socket = node.inputs['Color']
+    color_socket = node.inputs["Color"]
 
     x -= 200
 
     texture(
         mh,
         tex_info=tex_info,
-        label='CLEARCOAT NORMAL',
+        label="CLEARCOAT NORMAL",
         location=(x, y),
         is_data=True,
         color_socket=color_socket,

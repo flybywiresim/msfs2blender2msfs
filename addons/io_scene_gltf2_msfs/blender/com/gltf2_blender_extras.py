@@ -18,7 +18,7 @@ from .gltf2_blender_json import is_json_convertible
 
 
 # Custom properties, which are in most cases present and should not be imported/exported.
-BLACK_LIST = ['cycles', 'cycles_visibility', 'cycles_curves', '_RNA_UI', 'glTF2ExportSettings']
+BLACK_LIST = ["cycles", "cycles_visibility", "cycles_curves", "_RNA_UI"]
 
 
 def generate_extras(blender_element):
@@ -94,4 +94,7 @@ def set_extras(blender_element, extras, exclude=[]):
             try:
                 blender_element[custom_property] = str(value)
             except Exception:
-                print('Error setting property %s to value of type %s' % (custom_property, type(value)))
+                print(
+                    "Error setting property %s to value of type %s"
+                    % (custom_property, type(value))
+                )
