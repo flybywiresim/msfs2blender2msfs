@@ -113,7 +113,7 @@ def __gather_mime_type(sockets, export_image, export_settings):
             return "image/png"
 
     if export_settings["gltf_image_format"] == "AUTO":
-        if export_image.original is None: # We are going to create a new image
+        if export_image.original is None:  # We are going to create a new image
             image = export_image.blender_image()
         else:
             # Using original image
@@ -224,27 +224,27 @@ def __get_image_data(sockets, export_settings) -> ExportImage:
             for elem in result.path:
                 if isinstance(elem.from_node, bpy.types.ShaderNodeSeparateRGB):
                     src_chan = {
-                        'R': Channel.R,
-                        'G': Channel.G,
-                        'B': Channel.B,
+                        "R": Channel.R,
+                        "G": Channel.G,
+                        "B": Channel.B,
                     }[elem.from_socket.name]
-                if elem.from_socket.name == 'Alpha':
+                if elem.from_socket.name == "Alpha":
                     src_chan = Channel.A
 
             dst_chan = None
 
             # some sockets need channel rewriting (gltf pbr defines fixed channels for some attributes)
-            if socket.name == 'Metallic':
+            if socket.name == "Metallic":
                 dst_chan = Channel.B
-            elif socket.name == 'Roughness':
+            elif socket.name == "Roughness":
                 dst_chan = Channel.G
-            elif socket.name == 'Occlusion':
+            elif socket.name == "Occlusion":
                 dst_chan = Channel.R
-            elif socket.name == 'Alpha':
+            elif socket.name == "Alpha":
                 dst_chan = Channel.A
-            elif socket.name == 'Clearcoat':
+            elif socket.name == "Clearcoat":
                 dst_chan = Channel.R
-            elif socket.name == 'Clearcoat Roughness':
+            elif socket.name == "Clearcoat Roughness":
                 dst_chan = Channel.G
 
             if dst_chan is not None:
@@ -252,13 +252,19 @@ def __get_image_data(sockets, export_settings) -> ExportImage:
 
                 # Since metal/roughness are always used together, make sure
                 # the other channel is filled.
-                if socket.name == 'Metallic' and not composed_image.is_filled(Channel.G):
+                if socket.name == "Metallic" and not composed_image.is_filled(
+                    Channel.G
+                ):
                     composed_image.fill_white(Channel.G)
-                elif socket.name == 'Roughness' and not composed_image.is_filled(Channel.B):
+                elif socket.name == "Roughness" and not composed_image.is_filled(
+                    Channel.B
+                ):
                     composed_image.fill_white(Channel.B)
             else:
                 # copy full image...eventually following sockets might overwrite things
-                composed_image = ExportImage.from_blender_image(result.shader_node.image)
+                composed_image = ExportImage.from_blender_image(
+                    result.shader_node.image
+                )
 
     return composed_image
 
