@@ -539,6 +539,9 @@ class ExportGLTF2_Base:
         exceptional = [
             # options that don't start with 'export_'
             "use_selection",
+            "use_visible",
+            "use_renderable",
+            "use_active_collection",
             "use_mesh_edges",
             "use_mesh_vertices",
         ]
