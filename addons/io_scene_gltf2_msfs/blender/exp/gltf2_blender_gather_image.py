@@ -22,15 +22,19 @@ from io_scene_gltf2_msfs.blender.exp import gltf2_blender_search_node_tree
 from io_scene_gltf2_msfs.io.exp import gltf2_io_binary_data
 from io_scene_gltf2_msfs.io.exp import gltf2_io_image_data
 from io_scene_gltf2_msfs.io.com import gltf2_io_debug
-from io_scene_gltf2_msfs.blender.exp.gltf2_blender_image import Channel, ExportImage, FillImage
+from io_scene_gltf2_msfs.blender.exp.gltf2_blender_image import (
+    Channel,
+    ExportImage,
+    FillImage,
+)
 from io_scene_gltf2_msfs.blender.exp.gltf2_blender_gather_cache import cached
 from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_extensions
 
 
 @cached
 def gather_image(
-        blender_shader_sockets: typing.Tuple[bpy.types.NodeSocket],
-        export_settings):
+    blender_shader_sockets: typing.Tuple[bpy.types.NodeSocket], export_settings
+):
     if not __filter_image(blender_shader_sockets, export_settings):
         return None
 
@@ -57,43 +61,27 @@ def gather_image(
         mime_type,
         name,
         uri,
-        export_settings
+        export_settings,
     )
 
-    export_user_extensions('gather_image_hook', export_settings, image, blender_shader_sockets)
+    export_user_extensions(
+        "gather_image_hook", export_settings, image, blender_shader_sockets
+    )
 
     return image
 
-def __gather_original_uri(original_uri, export_settings):
-
-    def _path_to_uri(path):
-        import urllib
-        path = os.path.normpath(path)
-        path = path.replace(os.sep, '/')
-        return urllib.parse.quote(path)
-
-    path_to_image = bpy.path.abspath(original_uri)
-    if not os.path.exists(path_to_image): return None
-    try:
-        rel_path = os.path.relpath(
-            path_to_image,
-            start=export_settings[gltf2_blender_export_keys.FILE_DIRECTORY],
-        )
-    except ValueError:
-        # eg. because no relative path between C:\ and D:\ on Windows
-        return None
-    return _path_to_uri(rel_path)
-
 
 @cached
-def __make_image(buffer_view, extensions, extras, mime_type, name, uri, export_settings):
+def __make_image(
+    buffer_view, extensions, extras, mime_type, name, uri, export_settings
+):
     return gltf2_io.Image(
         buffer_view=buffer_view,
         extensions=extensions,
         extras=extras,
         mime_type=mime_type,
         name=name,
-        uri=uri
+        uri=uri,
     )
 
 
@@ -105,7 +93,7 @@ def __filter_image(sockets, export_settings):
 
 @cached
 def __gather_buffer_view(image_data, mime_type, name, export_settings):
-    if export_settings[gltf2_blender_export_keys.FORMAT] != 'GLTF_SEPARATE':
+    if export_settings[gltf2_blender_export_keys.FORMAT] != "GLTF_SEPARATE":
         return gltf2_io_binary_data.BinaryData(data=image_data.encode(mime_type))
     return None
 
@@ -140,43 +128,38 @@ def __gather_mime_type(sockets, export_image, export_settings):
 
 
 def __gather_name(export_image, export_settings):
-    if export_image.original is None:
-        # Find all Blender images used in the ExportImage
-        imgs = []
-        for fill in export_image.fills.values():
-            if isinstance(fill, FillImage):
-                img = fill.image
-                if img not in imgs:
-                    imgs.append(img)
+    # Find all Blender images used in the ExportImage
+    imgs = []
+    for fill in export_image.fills.values():
+        if isinstance(fill, FillImage):
+            img = fill.image
+            if img not in imgs:
+                imgs.append(img)
 
-        # If all the images have the same path, use the common filename
-        filepaths = set(img.filepath for img in imgs)
-        if len(filepaths) == 1:
-            filename = os.path.basename(list(filepaths)[0])
-            name, extension = os.path.splitext(filename)
-            if extension.lower() in ['.png', '.jpg', '.jpeg']:
-                if name:
-                    return name
+    # If all the images have the same path, use the common filename
+    filepaths = set(img.filepath for img in imgs)
+    if len(filepaths) == 1:
+        filename = os.path.basename(list(filepaths)[0])
+        name, extension = os.path.splitext(filename)
+        if extension.lower() in [".png", ".jpg", ".jpeg"]:
+            if name:
+                return name
 
-        # Combine the image names: img1-img2-img3
-        names = []
-        for img in imgs:
-            name, extension = os.path.splitext(img.name)
-            names.append(name)
-        name = '-'.join(names)
-        return name or 'Image'
-    else:
-        return export_image.original.name
+    # Combine the image names: img1-img2-img3
+    names = []
+    for img in imgs:
+        name, extension = os.path.splitext(img.name)
+        names.append(name)
+    name = "-".join(names)
+    return name or "Image"
 
 
 @cached
 def __gather_uri(image_data, mime_type, name, export_settings):
-    if export_settings[gltf2_blender_export_keys.FORMAT] == 'GLTF_SEPARATE':
+    if export_settings[gltf2_blender_export_keys.FORMAT] == "GLTF_SEPARATE":
         # as usual we just store the data in place instead of already resolving the references
         return gltf2_io_image_data.ImageData(
-            data=image_data.encode(mime_type=mime_type),
-            mime_type=mime_type,
-            name=name
+            data=image_data.encode(mime_type=mime_type), mime_type=mime_type, name=name
         )
 
     return None
@@ -190,19 +173,51 @@ def __get_image_data(sockets, export_settings) -> ExportImage:
     composed_image = ExportImage()
     for result, socket in zip(results, sockets):
         if result.shader_node.image.channels == 0:
-            gltf2_io_debug.print_console("WARNING",
-                                         "Image '{}' has no color channels and cannot be exported.".format(
-                                             result.shader_node.image))
+            gltf2_io_debug.print_console(
+                "WARNING",
+                "Image '{}' has no color channels and cannot be exported.".format(
+                    result.shader_node.image
+                ),
+            )
             continue
 
-        # Assume that user know what he does, and that channels/images are already combined correctly for pbr
-        # If not, we are going to keep only the first texture found
-        # Example : If user set up 2 or 3 different textures for Metallic / Roughness / Occlusion
-        # Only 1 will be used at export
-        # This Warning is displayed in UI of this option
-        if export_settings['gltf_keep_original_textures']:
-            composed_image = ExportImage.from_original(result.shader_node.image)
+        # rudimentarily try follow the node tree to find the correct image data.
+        src_chan = Channel.R
+        for elem in result.path:
+            if isinstance(elem.from_node, bpy.types.ShaderNodeSeparateRGB):
+                src_chan = {
+                    "R": Channel.R,
+                    "G": Channel.G,
+                    "B": Channel.B,
+                }[elem.from_socket.name]
+            if elem.from_socket.name == "Alpha":
+                src_chan = Channel.A
 
+        dst_chan = None
+
+        # some sockets need channel rewriting (gltf pbr defines fixed channels for some attributes)
+        if socket.name == "Metallic":
+            dst_chan = Channel.B
+        elif socket.name == "Roughness":
+            dst_chan = Channel.G
+        elif socket.name == "Occlusion":
+            dst_chan = Channel.R
+        elif socket.name == "Alpha":
+            dst_chan = Channel.A
+        elif socket.name == "Clearcoat":
+            dst_chan = Channel.R
+        elif socket.name == "Clearcoat Roughness":
+            dst_chan = Channel.G
+
+        if dst_chan is not None:
+            composed_image.fill_image(result.shader_node.image, dst_chan, src_chan)
+
+            # Since metal/roughness are always used together, make sure
+            # the other channel is filled.
+            if socket.name == "Metallic" and not composed_image.is_filled(Channel.G):
+                composed_image.fill_white(Channel.G)
+            elif socket.name == "Roughness" and not composed_image.is_filled(Channel.B):
+                composed_image.fill_white(Channel.B)
         else:
             # rudimentarily try follow the node tree to find the correct image data.
             src_chan = Channel.R
@@ -252,14 +267,15 @@ def __get_image_data(sockets, export_settings) -> ExportImage:
 def __get_tex_from_socket(blender_shader_socket: bpy.types.NodeSocket, export_settings):
     result = gltf2_blender_search_node_tree.from_socket(
         blender_shader_socket,
-        gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage))
+        gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage),
+    )
     if not result:
         return None
     return result[0]
 
 
 def __is_blender_image_a_jpeg(image: bpy.types.Image) -> bool:
-    if image.source != 'FILE':
+    if image.source != "FILE":
         return False
     path = image.filepath_raw.lower()
-    return path.endswith('.jpg') or path.endswith('.jpeg') or path.endswith('.jpe')
+    return path.endswith(".jpg") or path.endswith(".jpeg") or path.endswith(".jpe")

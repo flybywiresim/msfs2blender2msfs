@@ -16,6 +16,7 @@ import re
 
 class ImageData:
     """Contains encoded images"""
+
     # FUTURE_WORK: as a method to allow the node graph to be better supported, we could model some of
     # the node graph elements with numpy functions
 
@@ -33,7 +34,9 @@ class ImageData:
     def adjusted_name(self):
         regex_dot = re.compile("\.")
         adjusted_name = re.sub(regex_dot, "_", self.name)
-        new_name = "".join([char for char in adjusted_name if char not in "!#$&'()*+,/:;<>?@[\]^`{|}~"])
+        new_name = "".join(
+            [char for char in adjusted_name if char not in "!#$&'()*+,/:;<>?@[\]^`{|}~"]
+        )
         return new_name
 
     @property
