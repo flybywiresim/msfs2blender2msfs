@@ -74,7 +74,7 @@ def __gather_texture_info_helper(
     fields = {
         "extensions": __gather_extensions(tex_transform, export_settings),
         "extras": __gather_extras(blender_shader_sockets, export_settings),
-        "index": __gather_index(blender_shader_sockets, export_settings),
+        "index": __gather_index(blender_shader_sockets, kind, export_settings),
         "tex_coord": tex_coord,
     }
 
@@ -169,10 +169,10 @@ def __gather_occlusion_strength(primary_socket, export_settings):
     return None
 
 
-def __gather_index(blender_shader_sockets, export_settings):
+def __gather_index(blender_shader_sockets, kind, export_settings):
     # We just put the actual shader into the 'index' member
     return gltf2_blender_gather_texture.gather_texture(
-        blender_shader_sockets, export_settings
+        blender_shader_sockets, kind, export_settings
     )
 
 

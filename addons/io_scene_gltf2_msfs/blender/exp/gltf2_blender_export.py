@@ -85,9 +85,18 @@ def __gather_gltf(exporter, export_settings):
         export_settings["bounding_box_min_y"] = 0
         export_settings["bounding_box_min_z"] = 0
 
+    export_settings["extensionsUsed"] = []
+    export_settings["extensionsRequired"] = []
+
     active_scene_idx, scenes, animations = gltf2_blender_gather.gather_gltf2(
         export_settings
     )
+
+    for extensionUsed in export_settings["extensionsUsed"]:
+        exporter.add_extension_used(extensionUsed)
+
+    for extensionRequired in export_settings["extensionsRequired"]:
+        exporter.add_extension_required(extensionRequired)
 
     if export_settings["gltf_draco_mesh_compression"]:
         gltf2_io_draco_compression_extension.encode_scene_primitives(

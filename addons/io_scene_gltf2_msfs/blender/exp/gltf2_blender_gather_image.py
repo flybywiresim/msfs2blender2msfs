@@ -26,6 +26,7 @@ from io_scene_gltf2_msfs.blender.exp.gltf2_blender_image import (
     Channel,
     ExportImage,
     FillImage,
+    Channel,
 )
 from io_scene_gltf2_msfs.blender.exp.gltf2_blender_gather_cache import cached
 from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_extensions
@@ -33,7 +34,7 @@ from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_exte
 
 @cached
 def gather_image(
-    blender_shader_sockets: typing.Tuple[bpy.types.NodeSocket], export_settings
+    blender_shader_sockets: typing.Tuple[bpy.types.NodeSocket], kind, export_settings
 ):
     if not __filter_image(blender_shader_sockets, export_settings):
         return None
@@ -46,11 +47,25 @@ def gather_image(
     mime_type = __gather_mime_type(blender_shader_sockets, image_data, export_settings)
     name = __gather_name(image_data, export_settings)
 
+    # Figure out DDS format
+    if export_settings["emulate_asobo_optimization"]:
+        dds_format_table = {
+            "DEFAULT": gltf2_io_image_data.DDSFormat.BC3_UNORM,  # not sure if this should be bc1 or bc3, but bc3 should suffice for now. TODO: decide between bc1/3?
+            "NORMAL": gltf2_io_image_data.DDSFormat.BC5_SNORM,
+            "OCCLUSION": gltf2_io_image_data.DDSFormat.BC7_UNORM,
+        }
+        dds_format = dds_format_table[kind]
+    else:
+        dds_format = gltf2_io_image_data.DDSFormat.NONE
+
     if image_data.original is None:
-        uri = __gather_uri(image_data, mime_type, name, export_settings)
+        uri = __gather_uri(image_data, mime_type, name, dds_format, export_settings)
     else:
         # Retrieve URI relative to exported glTF files
         uri = __gather_original_uri(image_data.original.filepath, export_settings)
+
+    if export_settings["emulate_asobo_optimization"]:
+        name = None
 
     buffer_view = __gather_buffer_view(image_data, mime_type, name, export_settings)
 
@@ -103,10 +118,16 @@ def __gather_extensions(sockets, export_settings):
 
 
 def __gather_extras(sockets, export_settings):
-    return None
+    if export_settings["emulate_asobo_optimization"]:
+        return "ASOBO_image_converted_meta"
+    else:
+        return None
 
 
 def __gather_mime_type(sockets, export_image, export_settings):
+    if export_settings["emulate_asobo_optimization"]:
+        return None
+
     # force png if Alpha contained so we can export alpha
     for socket in sockets:
         if socket.name == "Alpha":
@@ -155,11 +176,15 @@ def __gather_name(export_image, export_settings):
 
 
 @cached
-def __gather_uri(image_data, mime_type, name, export_settings):
+def __gather_uri(image_data, mime_type, name, dds_format, export_settings):
     if export_settings[gltf2_blender_export_keys.FORMAT] == "GLTF_SEPARATE":
         # as usual we just store the data in place instead of already resolving the references
         return gltf2_io_image_data.ImageData(
-            data=image_data.encode(mime_type=mime_type), mime_type=mime_type, name=name
+            data=image_data.encode(mime_type=mime_type),
+            mime_type=mime_type,
+            name=name,
+            dds_format=dds_format,
+            channels=image_data.channels,
         )
 
     return None

@@ -13,17 +13,23 @@
 # limitations under the License.
 import re
 import os
+import json
+import subprocess
 import urllib.parse
 from typing import List
+from pathlib import Path
 
 from ... import get_version_string
 from io_scene_gltf2_msfs.io.com import gltf2_io
+from io_scene_gltf2_msfs.io.com import gltf2_io_debug
 from io_scene_gltf2_msfs.io.com import gltf2_io_extensions
 from io_scene_gltf2_msfs.io.exp import gltf2_io_binary_data
 from io_scene_gltf2_msfs.io.exp import gltf2_io_buffer
 from io_scene_gltf2_msfs.io.exp import gltf2_io_image_data
 from io_scene_gltf2_msfs.blender.exp import gltf2_blender_export_keys
 from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_extensions
+
+MS_FILETIME_EPOCH = 116444736000000000
 
 
 class GlTF2Exporter:
@@ -176,9 +182,106 @@ class GlTF2Exporter:
             os.makedirs(output_path, exist_ok=True)
 
         for name, image in self.__images.items():
-            dst_path = output_path + "/" + name + image.file_extension
+            is_dds = image._dds_format != gltf2_io_image_data.DDSFormat.NONE
+            if is_dds:
+                # If output folder is named model, and there is an accompanying folder named texture, put textures there
+                dir_name = os.path.dirname(output_path)
+                if os.path.basename(dir_name).lower() == "model":
+                    # Check for texture folder
+                    texture_folder = os.path.join(os.path.dirname(dir_name), "TEXTURE")
+                    if os.path.exists(texture_folder):
+                        output_path = texture_folder
+
+                dst_path = (
+                    output_path + "/" + name + ".png"
+                )  # We need to save as a PNG first in order to convert to DDS
+            else:
+                dst_path = output_path + "/" + name + image.file_extension
             with open(dst_path, "wb") as f:
                 f.write(image.data)
+
+            # Convert to DDS
+            if is_dds:
+                dds_format_table = {
+                    gltf2_io_image_data.DDSFormat.BC1_UNORM: "BC1_UNORM",
+                    gltf2_io_image_data.DDSFormat.BC3_UNORM: "BC3_UNORM",
+                    gltf2_io_image_data.DDSFormat.BC5_SNORM: "BC5_SNORM",
+                    gltf2_io_image_data.DDSFormat.BC7_UNORM: "BC7_UNORM",
+                }
+                dds_format = dds_format_table[image._dds_format]
+
+                png_path = dst_path  # get old path, then get new path
+                dst_path = output_path + "/" + name + image.file_extension
+
+                texconv_path = self.export_settings["addon_settings"].texconv_file
+
+                # Convert png_path to a Path (sometimes there is mixed forward slash and backslashes which causes an issue. Converting fixes that)
+                png_path = Path(png_path)
+
+                if texconv_path is None:
+                    gltf2_io_debug.print_console(
+                        "WARNING", "No texconv file is set, cannot convert image to DDS"
+                    )
+                else:
+                    try:
+                        output_lines = (
+                            subprocess.run(
+                                [
+                                    texconv_path,
+                                    "-y",
+                                    "-o",
+                                    str(os.path.dirname(png_path)),
+                                    "-f",
+                                    dds_format,
+                                    str(png_path),
+                                ],
+                                check=True,
+                                capture_output=True,
+                            )
+                            .stdout.decode("cp1252")
+                            .split("\r\n")
+                        )
+                    except subprocess.CalledProcessError as e:
+                        gltf2_io_debug.print_console(
+                            "ERROR",
+                            "Could not convert image {}: {}".format(png_path, e),
+                        )
+                        return None
+                    else:
+                        # Remove PNG file
+                        os.remove(str(png_path))
+
+                    # Get DDS file path
+                    dds_path = None
+                    for line in output_lines:
+                        line = line.lstrip()
+                        if line.startswith("writing "):
+                            file = Path(line.split("writing ")[1])
+                            if file.exists():
+                                dds_path = file
+                            else:
+                                gltf2_io_debug.print_console(
+                                    "ERROR",
+                                    "Could not convert {} to DDS".format(png_path),
+                                )
+
+                    if dds_path is not None:
+                        # Calculate file modified date with MSFS epoch
+                        dds_file_stat = Path(dds_path).stat()
+                        dds_file_mtime = (
+                            dds_file_stat.st_mtime_ns / 100
+                        ) + MS_FILETIME_EPOCH
+
+                        # Now write the JSON file
+                        dds_json = {
+                            "Version": 2,
+                            "SourceFileDate": dds_file_mtime,
+                            "Flags": None,  # TODO: flags
+                            "HasTransp": "A" in image._channels,
+                        }
+
+                        with open(f"{dds_path}.json", "w") as f:
+                            json.dump(dds_json, f)
 
     def add_scene(self, scene: gltf2_io.Scene, active: bool = False):
         """

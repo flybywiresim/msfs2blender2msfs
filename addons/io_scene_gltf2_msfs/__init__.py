@@ -706,6 +706,10 @@ class ExportGLTF2_Base:
         export_settings["pre_export_callbacks"] = pre_export_callbacks
         export_settings["post_export_callbacks"] = post_export_callbacks
 
+        export_settings["addon_settings"] = context.preferences.addons[
+            __name__
+        ].preferences
+
         return gltf2_blender_export.save(context, export_settings)
 
     def draw(self, context):

@@ -14,16 +14,33 @@
 import re
 
 
+class DDSFormat:
+    NONE = 0
+    BC1_UNORM = 1
+    BC3_UNORM = 2
+    BC5_SNORM = 3
+    BC7_UNORM = 4
+
+
 class ImageData:
     """Contains encoded images"""
 
     # FUTURE_WORK: as a method to allow the node graph to be better supported, we could model some of
     # the node graph elements with numpy functions
 
-    def __init__(self, data: bytes, mime_type: str, name: str):
+    def __init__(
+        self,
+        data: bytes,
+        mime_type: str,
+        name: str,
+        dds_format: DDSFormat,
+        channels: list,
+    ):
         self._data = data
         self._mime_type = mime_type
         self._name = name
+        self._dds_format = dds_format
+        self._channels = channels
 
     def __eq__(self, other):
         return self._data == other.data
@@ -32,12 +49,21 @@ class ImageData:
         return hash(self._data)
 
     def adjusted_name(self):
-        regex_dot = re.compile("\.")
-        adjusted_name = re.sub(regex_dot, "_", self.name)
-        new_name = "".join(
-            [char for char in adjusted_name if char not in "!#$&'()*+,/:;<>?@[\]^`{|}~"]
-        )
-        return new_name
+        if (
+            self._dds_format != DDSFormat.NONE
+        ):  # MSFS DDS images keep the .PNG instead of having it as _PNG
+            return self._name
+        else:
+            regex_dot = re.compile("\.")
+            adjusted_name = re.sub(regex_dot, "_", self.name)
+            new_name = "".join(
+                [
+                    char
+                    for char in adjusted_name
+                    if char not in "!#$&'()*+,/:;<>?@[\]^`{|}~"
+                ]
+            )
+            return new_name
 
     @property
     def data(self):
@@ -49,6 +75,8 @@ class ImageData:
 
     @property
     def file_extension(self):
+        if self._dds_format != DDSFormat.NONE:
+            return ".DDS"
         if self._mime_type == "image/jpeg":
             return ".jpg"
         return ".png"

@@ -75,6 +75,16 @@ class ExportImage:
         # In case of keeping original texture images
         self.original = original
 
+    @property
+    def channels(self):
+        channel_list = []
+        fill_dict = {Channel.R: "R", Channel.G: "G", Channel.B: "B", Channel.A: "A"}
+
+        for fill in self.fills:
+            channel_list.append(fill_dict[fill])
+
+        return channel_list
+
     @staticmethod
     def from_blender_image(image: bpy.types.Image):
         export_image = ExportImage()

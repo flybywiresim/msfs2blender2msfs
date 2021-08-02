@@ -26,7 +26,9 @@ from io_scene_gltf2_msfs.io.exp.gltf2_io_user_extensions import export_user_exte
 
 @cached
 def gather_texture(
-    blender_shader_sockets: typing.Tuple[bpy.types.NodeSocket], export_settings
+    blender_shader_sockets: typing.Tuple[bpy.types.NodeSocket],
+    kind: str,
+    export_settings,
 ):
     """
     Gather texture sampling information and image channels from a blender shader texture attached to a shader socket.
@@ -38,17 +40,30 @@ def gather_texture(
     if not __filter_texture(blender_shader_sockets, export_settings):
         return None
 
-    texture = gltf2_io.Texture(
-        extensions=__gather_extensions(blender_shader_sockets, export_settings),
-        extras=__gather_extras(blender_shader_sockets, export_settings),
-        name=__gather_name(blender_shader_sockets, export_settings),
-        sampler=__gather_sampler(blender_shader_sockets, export_settings),
-        source=__gather_source(blender_shader_sockets, export_settings),
-    )
+    if export_settings["emulate_asobo_optimization"]:
+        texture = gltf2_io.Texture(
+            extensions=__gather_extensions(
+                blender_shader_sockets, kind, export_settings
+            ),
+            extras=None,
+            name=None,
+            sampler=None,
+            source=None,
+        )
+    else:
+        texture = gltf2_io.Texture(
+            extensions=__gather_extensions(
+                blender_shader_sockets, kind, export_settings
+            ),
+            extras=__gather_extras(blender_shader_sockets, export_settings),
+            name=__gather_name(blender_shader_sockets, export_settings),
+            sampler=__gather_sampler(blender_shader_sockets, export_settings),
+            source=__gather_source(blender_shader_sockets, kind, export_settings),
+        )
 
-    # although valid, most viewers can't handle missing source properties
-    if texture.source is None:
-        return None
+        # although valid, most viewers can't handle missing source properties
+        if texture.source is None:
+            return None
 
     export_user_extensions(
         "gather_texture_hook", export_settings, texture, blender_shader_sockets
@@ -61,7 +76,17 @@ def __filter_texture(blender_shader_sockets, export_settings):
     return True
 
 
-def __gather_extensions(blender_shader_sockets, export_settings):
+def __gather_extensions(blender_shader_sockets, kind, export_settings):
+    if export_settings["emulate_asobo_optimization"]:
+        if "MSFT_texture_dds" not in export_settings["extensionsUsed"]:
+            export_settings["extensionsUsed"].append("MSFT_texture_dds")
+        if "MSFT_texture_dds" not in export_settings["extensionsRequired"]:
+            export_settings["extensionsRequired"].append("MSFT_texture_dds")
+        return {
+            "MSFT_texture_dds": {
+                "source": __gather_source(blender_shader_sockets, kind, export_settings)
+            }
+        }
     return None
 
 
@@ -86,9 +111,9 @@ def __gather_sampler(blender_shader_sockets, export_settings):
     return gltf2_blender_gather_sampler.gather_sampler(shader_nodes[0], export_settings)
 
 
-def __gather_source(blender_shader_sockets, export_settings):
+def __gather_source(blender_shader_sockets, kind, export_settings):
     return gltf2_blender_gather_image.gather_image(
-        blender_shader_sockets, export_settings
+        blender_shader_sockets, kind, export_settings
     )
 
 
