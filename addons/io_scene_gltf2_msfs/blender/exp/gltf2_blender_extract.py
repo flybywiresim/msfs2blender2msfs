@@ -310,14 +310,19 @@ def extract_primitives(
             # BLEND4 - Skinned meshes with 2-4 bones
             vertex_type = "VTX"  # default is VTX
 
-            for vi in blender_idxs:  # this function needs refactoring
-                vertex = blender_mesh.vertices[vi]
-                weight_count = len(list(filter(lambda x: x.weight > 0, vertex.groups)))
-                if weight_count > 1:
-                    vertex_type = "BLEND4"
-                    break
-                elif weight_count == 1 and vertex_type == "VTX":
-                    vertex_type = "BLEND1"
+            if (
+                armature
+            ):  # Some meshes can have weights without being skinned, so we need to make sure that the mesh is skinned before assigning BLENDX vertex types
+                for vi in blender_idxs:  # this function needs refactoring
+                    vertex = blender_mesh.vertices[vi]
+                    weight_count = len(
+                        list(filter(lambda x: x.weight > 0, vertex.groups))
+                    )
+                    if weight_count > 1:
+                        vertex_type = "BLEND4"
+                        break
+                    elif weight_count == 1 and vertex_type == "VTX":
+                        vertex_type = "BLEND1"
 
         for morph_i, vs in enumerate(morph_locs):
             attributes["MORPH_POSITION_%d" % morph_i] = vs[blender_idxs]
